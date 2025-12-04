@@ -39,7 +39,7 @@ This setup/script automates the installation of Proxmox 9 on Debian 13 and the c
 1. Clone the repository to your Debian 13 system.
 ```bash
 # With git already installed on your machine, clone the repository
-git clone https://github.com/mathewalves/proxmox-debian13.git
+git clone https://github.com/tjengbudi/proxmox-debian13.git
 
 # Access the downloaded folder with the 'cd' command
 cd /proxmox-debian13
@@ -77,7 +77,7 @@ Make sure to review the official documentation for each package for more details
 
 ## Updates and Support
 
-For support or to report issues, [ open an issue](https://github.com/mathewalves/proxmox-debian13/issues).
+For support or to report issues, [ open an issue](https://github.com/tjengbudi/proxmox-debian13/issues).
 
 ## License
 This script is distributed under the [BSD 3-Clause License](https://opensource.org/licenses/BSD-3-Clause).
@@ -124,7 +124,7 @@ Este setup/script automatiza a instalação do Proxmox 9 sobre o Debian 13 e a c
 1. Clone o repositório para o seu sistema Debian 13.
 ```bash
 # Com o git já instalado na sua máquina clone o repositório
-git clone https://github.com/mathewalves/proxmox-debian13.git
+git clone https://github.com/tjengbudi/proxmox-debian13.git
 
 # Acesse a pasta baixada com o comando 'cd'
 cd /proxmox-debian13
@@ -162,7 +162,7 @@ Certifique-se de revisar a documentação oficial de cada pacote para obter mais
 
 ## Atualizações e Suporte
 
-Para obter suporte ou relatar problemas, [abra uma issue](https://github.com/mathewalves/proxmox-debian13/issues).
+Para obter suporte ou relatar problemas, [abra uma issue](https://github.com/tjengbudi/proxmox-debian13/issues).
 
 ## Licença
 
