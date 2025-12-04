@@ -227,19 +227,35 @@ install_nala()
     fi
 }
 
-# Function to install neofetch
-install_neofetch() 
+# Function to install system info tool (fastfetch/neofetch)
+install_neofetch()
 {
     if [ "$language" == "en" ]; then
-        echo -e "${cyan}Starting the installation of 'neofetch' with nala...${default}"
+        echo -e "${cyan}Starting the installation of system information tool...${default}"
     else
-        echo -e "${cyan}Iniciando a instalação do 'neofetch' com 'nala'...${default}"
+        echo -e "${cyan}Iniciando a instalação da ferramenta de informações do sistema...${default}"
     fi
-    nala install -y neofetch
-    if [ "$language" == "en" ]; then
-        echo -e "${green}'neofetch' installed successfully!${default}"
+
+    # Try to install fastfetch first (modern alternative for Debian 13)
+    if nala install -y fastfetch 2>/dev/null; then
+        if [ "$language" == "en" ]; then
+            echo -e "${green}'fastfetch' installed successfully!${default}"
+        else
+            echo -e "${green}'fastfetch' instalado com sucesso!${default}"
+        fi
+    # Fallback to neofetch if available
+    elif nala install -y neofetch 2>/dev/null; then
+        if [ "$language" == "en" ]; then
+            echo -e "${green}'neofetch' installed successfully!${default}"
+        else
+            echo -e "${green}'neofetch' instalado com sucesso!${default}"
+        fi
     else
-        echo -e "${green}'neofetch' instalado com sucesso!${default}"
+        if [ "$language" == "en" ]; then
+            echo -e "${yellow}System information tool not available, skipping...${default}"
+        else
+            echo -e "${yellow}Ferramenta de informações do sistema não disponível, pulando...${default}"
+        fi
     fi
 }
 

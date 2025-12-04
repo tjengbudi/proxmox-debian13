@@ -24,8 +24,11 @@ echo -e "${red}
 
  ${normal}"               
 
-    # Check if neofetch is installed and display system information
-    if command -v neofetch &> /dev/null; then
+    # Check if system info tool is installed and display system information
+    if command -v fastfetch &> /dev/null; then
+        echo ""
+        fastfetch
+    elif command -v neofetch &> /dev/null; then
         echo ""
         neofetch
     fi
@@ -61,7 +64,10 @@ bem_vindo()
 
  ${default}"               
 
-    if command -v neofetch &> /dev/null; then
+    if command -v fastfetch &> /dev/null; then
+        echo ""
+        fastfetch
+    elif command -v neofetch &> /dev/null; then
         echo ""
         neofetch
     fi

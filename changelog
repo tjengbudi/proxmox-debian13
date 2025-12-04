@@ -31,7 +31,9 @@ Changes:
 
 6. Dependency Compatibility:
    - Verified all packages (proxmox-ve, postfix, open-iscsi, chrony) compatibility with Debian 13
-   - Maintained compatibility with additional packages (sudo, nala, neofetch, net-tools, nmap)
+   - Maintained compatibility with additional packages (sudo, nala, net-tools, nmap)
+   - Replaced neofetch with fastfetch (neofetch deprecated in Debian 13)
+   - Added error handling to prevent installation failures on missing packages
 
 This release ensures full compatibility with Debian 13 Trixie and Proxmox VE 9, providing users with the latest stable virtualization platform with enhanced security, performance, and feature set.
 

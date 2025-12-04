@@ -79,7 +79,7 @@ Facilitates network configuration by creating a bridge named **vmbr0**. You can 
 The script offers optional installation of useful packages:
 - **sudo** - Essential tool to grant administrative permissions
 - **nala** - Enhanced APT package manager with better UI
-- **neofetch** - System information display tool
+- **fastfetch/neofetch** - System information display tool (fastfetch for Debian 13, neofetch fallback)
 - **net-tools** - Classic network utilities (ifconfig, route, etc.)
 - **nmap** - Network scanning and security auditing tool
 

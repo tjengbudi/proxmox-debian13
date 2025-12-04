@@ -136,8 +136,10 @@ main()
     remove_kernel
     remove_os-prober
 
-    # Check if the neofetch command is installed // Verificar se o comando neofetch está instalado
-    if command -v neofetch &> /dev/null; then
+    # Check if system info tool is installed // Verificar se a ferramenta de informações do sistema está instalada
+    if command -v fastfetch &> /dev/null; then
+        fastfetch
+    elif command -v neofetch &> /dev/null; then
         neofetch
     fi
 
