@@ -30,10 +30,17 @@ configure_bridge()
     # Check if the configuration file exists
     if [ ! -f "$config_file" ]; then
         whiptail --title "Network Configuration" --msgbox "The configuration file $config_file does not exist. Run the script install_proxmox-1.sh first or configure manually." 15 60
+        exit 1
     fi
 
     # Read configurations from the file
     source "$config_file"
+
+    # Backup network interfaces file before making changes
+    if [ ! -f "/etc/network/interfaces.backup" ]; then
+        cp /etc/network/interfaces /etc/network/interfaces.backup
+        echo -e "${green}Backup created: /etc/network/interfaces.backup${default}"
+    fi
 
     # Display network information
     whiptail --title "Network Configuration" --msgbox "Interface Information:\n\nPhysical Interface: $INTERFACE\nIP Address: $IP_ADDRESS\nGateway: $GATEWAY" 15 60
@@ -122,11 +129,18 @@ EOF
     done
 
     # Restart the network service to apply the changes
-    whiptail --title "Network Configuration" --msgbox "Restarting the network service to apply the changes..." 10 60
-    systemctl restart networking
-    ip link set dev vmbr0 up
+    whiptail --title "Network Configuration" --msgbox "Restarting the network service to apply the changes...\n\nWARNING: This may temporarily disconnect your network.\nIf you lose connection, you can restore the backup at:\n/etc/network/interfaces.backup" 15 60
 
-    whiptail --title "Network Configuration" --msgbox "The vmbr0 bridge was created successfully!" 10 60
+    if ! systemctl restart networking; then
+        whiptail --title "Network Configuration ERROR" --msgbox "ERROR: Failed to restart networking service!\n\nYou can restore the backup with:\nsudo cp /etc/network/interfaces.backup /etc/network/interfaces\nsudo systemctl restart networking\n\nPlease check your configuration manually." 15 60
+        exit 1
+    fi
+
+    if ! ip link set dev vmbr0 up; then
+        whiptail --title "Network Configuration ERROR" --msgbox "WARNING: Failed to bring up vmbr0 interface!\n\nThe bridge was created but may need manual configuration.\nPlease check with: ip addr show vmbr0" 15 60
+    else
+        whiptail --title "Network Configuration" --msgbox "SUCCESS: The vmbr0 bridge was created and activated!\n\nYou can verify with: ip addr show vmbr0" 10 60
+    fi
 }
 
 configurar_bridge()
@@ -136,10 +150,17 @@ configurar_bridge()
     # Verificar se o arquivo de configuração existe
     if [ ! -f "$config_file" ]; then
         whiptail --title "Configuração de Rede" --msgbox "O arquivo de configuração $config_file não existe. Execute o script install_proxmox-1.sh primeiro ou configure manualmente." 15 60
+        exit 1
     fi
 
     # Ler as configurações do arquivo
     source "$config_file"
+
+    # Fazer backup do arquivo de interfaces de rede antes de fazer alterações
+    if [ ! -f "/etc/network/interfaces.backup" ]; then
+        cp /etc/network/interfaces /etc/network/interfaces.backup
+        echo -e "${green}Backup criado: /etc/network/interfaces.backup${default}"
+    fi
 
     # Exibindo informações de rede
     whiptail --title "Configuração de Rede" --msgbox "Informações da Interface:\n\nInterface Física: $INTERFACE\nEndereço IP: $IP_ADDRESS\nGateway: $GATEWAY" 15 60
@@ -228,11 +249,18 @@ EOF
     done
 
     # Reiniciar o serviço de rede para aplicar as alterações
-    whiptail --title "Configuração de Rede" --msgbox "Reiniciando o serviço de rede para aplicar as alterações..." 10 60
-    systemctl restart networking
-    ip link set dev vmbr0 up
+    whiptail --title "Configuração de Rede" --msgbox "Reiniciando o serviço de rede para aplicar as alterações...\n\nAVISO: Isso pode desconectar sua rede temporariamente.\nSe perder a conexão, você pode restaurar o backup em:\n/etc/network/interfaces.backup" 15 60
 
-    whiptail --title "Configuração de Rede" --msgbox "A bridge vmbr0 foi criada com sucesso!" 10 60
+    if ! systemctl restart networking; then
+        whiptail --title "ERRO na Configuração de Rede" --msgbox "ERRO: Falha ao reiniciar o serviço de rede!\n\nVocê pode restaurar o backup com:\nsudo cp /etc/network/interfaces.backup /etc/network/interfaces\nsudo systemctl restart networking\n\nVerifique a configuração manualmente." 15 60
+        exit 1
+    fi
+
+    if ! ip link set dev vmbr0 up; then
+        whiptail --title "ERRO na Configuração de Rede" --msgbox "AVISO: Falha ao ativar interface vmbr0!\n\nA bridge foi criada mas pode precisar de configuração manual.\nVerifique com: ip addr show vmbr0" 15 60
+    else
+        whiptail --title "Configuração de Rede" --msgbox "SUCESSO: A bridge vmbr0 foi criada e ativada!\n\nVocê pode verificar com: ip addr show vmbr0" 10 60
+    fi
 }
 
 remove_start_script() 

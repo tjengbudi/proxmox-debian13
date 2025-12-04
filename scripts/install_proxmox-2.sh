@@ -93,24 +93,52 @@ proxmox-ve_packages()
         echo -e "${cyan}Instalando Proxmox VE e pacotes necessários...${default}"
     fi
 
-    DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+    if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
         proxmox-ve \
         postfix \
         open-iscsi \
-        chrony
-
-    if [ $? -ne 0 ]; then
+        chrony; then
         if [ "$LANGUAGE" == "en" ]; then
-            echo -e "${red}Error: Package installation failed. Trying to fix...${default}"
+            echo -e "${red}Error: Package installation failed. Trying to fix dependencies...${default}"
         else
-            echo -e "${red}Erro: Instalação de pacotes falhou. Tentando corrigir...${default}"
+            echo -e "${red}Erro: Instalação de pacotes falhou. Tentando corrigir dependências...${default}"
         fi
+
         apt-get install -f -y
-        DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+
+        # Retry installation
+        if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
             proxmox-ve \
             postfix \
             open-iscsi \
-            chrony
+            chrony; then
+            if [ "$LANGUAGE" == "en" ]; then
+                echo -e "${red}CRITICAL ERROR: Failed to install Proxmox VE packages!${default}"
+                echo -e "${red}Installation cannot continue. Please check the error messages above.${default}"
+                echo -e "${yellow}Common solutions:"
+                echo -e "  1. Check your internet connection"
+                echo -e "  2. Check repository configuration in /etc/apt/sources.list.d/"
+                echo -e "  3. Run: apt-get update"
+                echo -e "  4. Run: apt-get install -f"
+                echo -e "  5. Check for held packages: dpkg --get-selections | grep hold${default}"
+            else
+                echo -e "${red}ERRO CRÍTICO: Falha ao instalar pacotes do Proxmox VE!${default}"
+                echo -e "${red}A instalação não pode continuar. Verifique as mensagens de erro acima.${default}"
+                echo -e "${yellow}Soluções comuns:"
+                echo -e "  1. Verificar conexão com a internet"
+                echo -e "  2. Verificar configuração dos repositórios em /etc/apt/sources.list.d/"
+                echo -e "  3. Executar: apt-get update"
+                echo -e "  4. Executar: apt-get install -f"
+                echo -e "  5. Verificar pacotes retidos: dpkg --get-selections | grep hold${default}"
+            fi
+            exit 1
+        fi
+    fi
+
+    if [ "$LANGUAGE" == "en" ]; then
+        echo -e "${green}Proxmox VE packages installed successfully!${default}"
+    else
+        echo -e "${green}Pacotes do Proxmox VE instalados com sucesso!${default}"
     fi
 }
 
@@ -127,15 +155,53 @@ remove_kernel()
         echo -e "...${default}"
     fi
 
-    if command -v nala &> /dev/null; then
-        # Execute with 'nala' if installed
-        nala remove -y linux-image-amd64 'linux-image-6.12*'
-    else
-        # Execute with 'apt' if 'nala' is not installed
-        apt remove -y linux-image-amd64 'linux-image-6.12*'
+    # Check if Proxmox kernel is installed before removing old kernel
+    if ! dpkg -l | grep -q "proxmox-kernel"; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${red}WARNING: Proxmox kernel not detected!${default}"
+            echo -e "${yellow}Skipping removal of old kernel for safety.${default}"
+            echo -e "${yellow}You can manually remove it later after verifying Proxmox kernel is working.${default}"
+        else
+            echo -e "${red}AVISO: Kernel do Proxmox não detectado!${default}"
+            echo -e "${yellow}Pulando remoção do kernel antigo por segurança.${default}"
+            echo -e "${yellow}Você pode removê-lo manualmente depois de verificar que o kernel do Proxmox está funcionando.${default}"
+        fi
+        return 0
     fi
 
-    update-grub
+    # Remove old Debian kernel
+    if [ "$LANGUAGE" == "en" ]; then
+        echo -e "${yellow}Removing old Debian kernel...${default}"
+    else
+        echo -e "${yellow}Removendo kernel antigo do Debian...${default}"
+    fi
+
+    if ! apt-get remove -y linux-image-amd64 'linux-image-6.12*'; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${yellow}WARNING: Failed to remove old kernel. This is not critical.${default}"
+            echo -e "${yellow}You can manually remove it later with: apt-get remove linux-image-amd64${default}"
+        else
+            echo -e "${yellow}AVISO: Falha ao remover kernel antigo. Isso não é crítico.${default}"
+            echo -e "${yellow}Você pode removê-lo manualmente depois com: apt-get remove linux-image-amd64${default}"
+        fi
+    fi
+
+    # Update grub
+    if [ "$LANGUAGE" == "en" ]; then
+        echo -e "${cyan}Updating GRUB bootloader...${default}"
+    else
+        echo -e "${cyan}Atualizando o carregador de boot GRUB...${default}"
+    fi
+
+    if ! update-grub; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${red}WARNING: Failed to update GRUB!${default}"
+            echo -e "${yellow}You may need to run 'update-grub' manually before rebooting.${default}"
+        else
+            echo -e "${red}AVISO: Falha ao atualizar GRUB!${default}"
+            echo -e "${yellow}Você pode precisar executar 'update-grub' manualmente antes de reiniciar.${default}"
+        fi
+    fi
 }
 
 remove_os-prober()

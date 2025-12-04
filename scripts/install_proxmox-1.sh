@@ -233,7 +233,23 @@ install_proxmox-2()
 
     echo "deb [arch=amd64] http://download.proxmox.com/debian/pve trixie pve-no-subscription" > /etc/apt/sources.list.d/pve-install-repo.list
 
-    wget https://enterprise.proxmox.com/debian/proxmox-release-trixie.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-trixie.gpg
+    # Download GPG key with error handling
+    if [ "$LANGUAGE" == "en" ]; then
+        echo -e "${cyan}Downloading Proxmox repository GPG key...${default}"
+    else
+        echo -e "${cyan}Baixando chave GPG do repositório Proxmox...${default}"
+    fi
+
+    if ! wget -q https://enterprise.proxmox.com/debian/proxmox-release-trixie.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-trixie.gpg; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${red}CRITICAL ERROR: Failed to download Proxmox GPG key!${default}"
+            echo -e "${red}Please check your internet connection and try again.${default}"
+        else
+            echo -e "${red}ERRO CRÍTICO: Falha ao baixar chave GPG do Proxmox!${default}"
+            echo -e "${red}Verifique sua conexão com a internet e tente novamente.${default}"
+        fi
+        exit 1
+    fi
 
     echo -e "${yellow}Checking Key...${default}"
 
@@ -242,13 +258,43 @@ install_proxmox-2()
 
     # Check if the key is empty
     if [ -z "$key_hash" ]; then
-        echo -e "${red}Error: The key does not match the expected one or is empty. Proxmox installation may be compromised.${default}"
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${red}CRITICAL ERROR: The GPG key is empty or invalid!${default}"
+            echo -e "${red}Proxmox installation cannot continue. Aborting...${default}"
+        else
+            echo -e "${red}ERRO CRÍTICO: A chave GPG está vazia ou inválida!${default}"
+            echo -e "${red}A instalação do Proxmox não pode continuar. Abortando...${default}"
+        fi
         exit 1
     else
-        echo -e "${green}Success: The key matches the expected one.${default}"
+        echo -e "${green}Success: The key is valid.${default}"
     fi
 
-    apt-get update && apt-get -y full-upgrade
+    # Update and upgrade system with error handling
+    if [ "$LANGUAGE" == "en" ]; then
+        echo -e "${cyan}Updating system packages...${default}"
+    else
+        echo -e "${cyan}Atualizando pacotes do sistema...${default}"
+    fi
+
+    if ! apt-get update; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${red}CRITICAL ERROR: Failed to update package lists!${default}"
+            echo -e "${red}Please check your internet connection and repository configuration.${default}"
+        else
+            echo -e "${red}ERRO CRÍTICO: Falha ao atualizar listas de pacotes!${default}"
+            echo -e "${red}Verifique sua conexão e configuração dos repositórios.${default}"
+        fi
+        exit 1
+    fi
+
+    if ! apt-get -y full-upgrade; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${yellow}WARNING: System upgrade had some issues, but continuing...${default}"
+        else
+            echo -e "${yellow}AVISO: Atualização do sistema teve problemas, mas continuando...${default}"
+        fi
+    fi
 
     echo -e "${cyan}...${default}"
 }
@@ -265,12 +311,26 @@ install_proxmox-3()
         echo -e "...${default}"
     fi
 
-    if command -v nala &> /dev/null; then
-        # Run with 'nala' if installed
-        nala install -y proxmox-default-kernel
-    else
-        # Run with 'apt' if 'nala' is not installed
-        apt install -y proxmox-default-kernel
+    # Install Proxmox kernel with error handling
+    if ! apt-get install -y proxmox-default-kernel; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${red}CRITICAL ERROR: Failed to install Proxmox kernel!${default}"
+            echo -e "${red}Installation cannot continue. Please check the error messages above.${default}"
+            echo -e "${yellow}You may need to:"
+            echo -e "  1. Check your internet connection"
+            echo -e "  2. Run: apt-get update"
+            echo -e "  3. Run: apt-get install -f"
+            echo -e "  4. Try running this script again${default}"
+        else
+            echo -e "${red}ERRO CRÍTICO: Falha ao instalar kernel do Proxmox!${default}"
+            echo -e "${red}A instalação não pode continuar. Verifique as mensagens de erro acima.${default}"
+            echo -e "${yellow}Você pode precisar:"
+            echo -e "  1. Verificar sua conexão com a internet"
+            echo -e "  2. Executar: apt-get update"
+            echo -e "  3. Executar: apt-get install -f"
+            echo -e "  4. Tentar executar este script novamente${default}"
+        fi
+        exit 1
     fi
 
     if [ "$LANGUAGE" == "en" ]; then
