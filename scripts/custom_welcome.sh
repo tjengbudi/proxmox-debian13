@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Proxmox Setup v1.0.1
+# Proxmox Setup v1.1.0
 # by: Matheew Alves
 
-cd /Proxmox-Debian12
+cd /proxmox-debian13
 
 # Load configs files // Carregar os arquivos de configuração
 source ./configs/colors.conf

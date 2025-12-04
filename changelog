@@ -1,4 +1,42 @@
-[current version]  --> 1.0.1
+[current version]  --> 1.1.0
+Version 1.1.0 of the Proxmox 9 Installation Setup on Debian 13 Trixie
+Summary:
+This major version upgrade migrates the installation from Debian 12 (Bookworm) to Debian 13 (Trixie) and from Proxmox VE 8 to Proxmox VE 9. All dependencies, repositories, and kernel versions have been updated to ensure compatibility with the latest Debian and Proxmox releases.
+
+Changes:
+
+1. Debian Version Upgrade:
+   - Upgraded base system from Debian 12 (Bookworm) to Debian 13 (Trixie)
+   - Updated all references and documentation to reflect Debian 13
+   - Directory name changed from /Proxmox-Debian12 to /proxmox-debian13
+
+2. Proxmox Version Upgrade:
+   - Upgraded Proxmox VE from version 8 to version 9
+   - Updated repository from "bookworm" to "trixie" (trixie pve-no-subscription)
+   - Updated GPG key from proxmox-release-bookworm.gpg to proxmox-release-trixie.gpg
+
+3. Kernel Updates:
+   - Updated kernel removal pattern from linux-image-6.1* to linux-image-6.12*
+   - Compatible with Proxmox VE 9 default kernel (proxmox-default-kernel)
+
+4. Repository Changes:
+   - Repository URL: http://download.proxmox.com/debian/pve trixie pve-no-subscription
+   - GPG Key URL: https://enterprise.proxmox.com/debian/proxmox-release-trixie.gpg
+
+5. Script Updates:
+   - All scripts updated to version 1.1.0
+   - All path references updated from /Proxmox-Debian12 to /proxmox-debian13
+   - All user-facing messages updated to reference Debian 13 and Proxmox 9
+   - Directory paths use lowercase for consistency (proxmox-debian13)
+
+6. Dependency Compatibility:
+   - Verified all packages (proxmox-ve, postfix, open-iscsi, chrony) compatibility with Debian 13
+   - Maintained compatibility with additional packages (sudo, nala, neofetch, net-tools, nmap)
+
+This release ensures full compatibility with Debian 13 Trixie and Proxmox VE 9, providing users with the latest stable virtualization platform with enhanced security, performance, and feature set.
+
+[...]
+
 Version 1.0.1 of the Proxmox Installation Setup on Debian 12
 Summary:
 This version introduces interactive menus using whiptail, translation support for both pt-BR and English, and the option to choose whether to add a custom welcome screen. Additionally, code documentation has been enhanced for improved clarity.

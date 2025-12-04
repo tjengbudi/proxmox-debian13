@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Proxmox Setup v1.0.1
+# Proxmox Setup v1.1.0
 # by: Matheew Alves
 
-cd /Proxmox-Debian12
+cd /proxmox-debian13
 
 # Load configs files // Carregar os arquivos de configuração
 source ./configs/colors.conf
@@ -34,13 +34,13 @@ remove_start_script()
         echo -e "${blue}Removed profile configuration for user:${cyan} $(basename "$user_home").${normal}"
 
         # Remove the lines added to /root/.bashrc
-        sed -i '/# Execute script after login/,/\/Proxmox-Debian12\/scripts\/install_proxmox-2.sh/d' /root/.bashrc
+        sed -i '/# Execute script after login/,/\/proxmox-debian13\/scripts\/install_proxmox-2.sh/d' /root/.bashrc
         echo -e "${blue}Removed automatic script configuration in /root/.bashrc.${normal}"
     done
 }
 
 # Start bridge configuration after reboot // Iniciar configuração da bridge após o reboot
-configure_bridge() 
+configure_bridge()
 {
     for user_home in /home/*; do
         PROFILE_FILE="$user_home/.bashrc"
@@ -49,7 +49,7 @@ configure_bridge()
         if [ -f "$PROFILE_FILE" ]; then
             # Add the script execution line at the end of the file
             echo -e "\n# Run script after login" >> "$PROFILE_FILE"
-            echo "/Proxmox-Debian12/scripts/configure_bridge.sh" >> "$PROFILE_FILE"
+            echo "/proxmox-debian13/scripts/configure_bridge.sh" >> "$PROFILE_FILE"
 
             echo "Automatic configuration completed for user: $(basename "$user_home")."
         fi
@@ -57,7 +57,7 @@ configure_bridge()
 
     # Add the following lines at the end of the /root/.bashrc file
     echo -e "\n# Run script after login" >> /root/.bashrc
-    echo "/Proxmox-Debian12/scripts/configure_bridge.sh" >> /root/.bashrc
+    echo "/proxmox-debian13/scripts/configure_bridge.sh" >> /root/.bashrc
 
     echo "Automatic configuration completed for the root user."
 }
@@ -99,10 +99,10 @@ remove_kernel()
 
     if command -v nala &> /dev/null; then
         # Execute with 'nala' if installed
-        nala remove -y linux-image-amd64 'linux-image-6.1*'
+        nala remove -y linux-image-amd64 'linux-image-6.12*'
     else
         # Execute with 'apt' if 'nala' is not installed
-        apt remove -y linux-image-amd64 'linux-image-6.1*'
+        apt remove -y linux-image-amd64 'linux-image-6.12*'
     fi
 
     update-grub

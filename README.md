@@ -11,15 +11,15 @@
 
 [![Language](https://img.shields.io/badge/🌎-English:-blue)](#)
 
-# Proxmox VE Installer on Debian 12 Bookworm
+# Proxmox VE Installer on Debian 13 Trixie
 
-This setup/script automates the installation of Proxmox on Debian 12 and the creation of a bridge to facilitate network configuration.
+This setup/script automates the installation of Proxmox 9 on Debian 13 and the creation of a bridge to facilitate network configuration.
 
-**Note: This script is designed to run on a Debian 12 system. Make sure to have superuser permissions before executing the script.**
+**Note: This script is designed to run on a Debian 13 system. Make sure to have superuser permissions before executing the script.**
 
 ## Requirements
 
-- Installed Debian 12 Bookworm
+- Installed Debian 13 Trixie
 - Superuser permissions
   ```bash
   su root
@@ -36,13 +36,13 @@ This setup/script automates the installation of Proxmox on Debian 12 and the cre
 
 ## Usage Instructions
 
-1. Clone the repository to your Debian 12 system.
+1. Clone the repository to your Debian 13 system.
 ```bash
 # With git already installed on your machine, clone the repository
-git clone https://github.com/mathewalves/Proxmox-Debian12.git
+git clone https://github.com/mathewalves/proxmox-debian13.git
 
 # Access the downloaded folder with the 'cd' command
-cd /Proxmox-Debian12
+cd /proxmox-debian13
 ```
 2. Make the script executable.
 ```bash
@@ -69,7 +69,7 @@ Make sure to review the official documentation for each package for more details
 
 ## Features
 
-1. **Proxmox Installation:** The script automatically installs Proxmox on the Debian 12 base.
+1. **Proxmox 9 Installation:** The script automatically installs Proxmox 9 on the Debian 13 base.
 
 2. **Additional Packages:** These additional packages are installed to enhance the user experience and provide useful tools for the system and Proxmox environment.
 
@@ -77,14 +77,14 @@ Make sure to review the official documentation for each package for more details
 
 ## Updates and Support
 
-For support or to report issues, [ open an issue](https://github.com/mathewalves/Proxmox-Debian12/issues).
+For support or to report issues, [ open an issue](https://github.com/mathewalves/proxmox-debian13/issues).
 
 ## License
 This script is distributed under the [BSD 3-Clause License](https://opensource.org/licenses/BSD-3-Clause).
 
 ## Acknowledgments
 
-Thank you for using the Proxmox Installation Script on Debian 12
+Thank you for using the Proxmox 9 Installation Script on Debian 13
 If you come across any improvements or would like to contribute, feel free to create a pull request. Your contributions are welcome to enhance this script.
 
 We appreciate your participation in the community and your contribution to the ongoing development of this script.
@@ -96,15 +96,15 @@ We appreciate your participation in the community and your contribution to the o
 [![Language](https://img.shields.io/badge/🇧🇷-PT--BR:-green)](#)
 
 
-# Instalador do Proxmox VE no Debian 12 Bookworm
+# Instalador do Proxmox VE no Debian 13 Trixie
 
-Este setup/script automatiza a instalação do Proxmox sobre o Debian 12 e a criação da bridge para facilitar a configuração de redes.
+Este setup/script automatiza a instalação do Proxmox 9 sobre o Debian 13 e a criação da bridge para facilitar a configuração de redes.
 
-**Nota: Este script foi projetado para ser executado em um sistema Debian 12. Certifique-se de ter permissões de superusuário antes de executar o script.**
+**Nota: Este script foi projetado para ser executado em um sistema Debian 13. Certifique-se de ter permissões de superusuário antes de executar o script.**
 
 ## Requisitos
 
-- Debian 12 Bookworm instalado
+- Debian 13 Trixie instalado
 - Permissões de superusuário
   ```bash
   su root
@@ -121,13 +121,13 @@ Este setup/script automatiza a instalação do Proxmox sobre o Debian 12 e a cri
 
 ## Instruções de Uso
 
-1. Clone o repositório para o seu sistema Debian 12.
+1. Clone o repositório para o seu sistema Debian 13.
 ```bash
 # Com o git já instalado na sua máquina clone o repositório
-git clone https://github.com/mathewalves/Proxmox-Debian12.git
+git clone https://github.com/mathewalves/proxmox-debian13.git
 
 # Acesse a pasta baixada com o comando 'cd'
-cd /Proxmox-Debian12
+cd /proxmox-debian13
 ```
 2. Torne o script executável.
 ```bash
@@ -154,7 +154,7 @@ Certifique-se de revisar a documentação oficial de cada pacote para obter mais
 
 ## Funcionalidades
 
-1. **Instalação do Proxmox:** O script instala automaticamente o Proxmox sobre a base do Debian 12.
+1. **Instalação do Proxmox 9:** O script instala automaticamente o Proxmox 9 sobre a base do Debian 13.
 
 2. **Pacotes Adicionais:** Esses pacotes adicionais são instalados para melhorar a experiência do usuário e fornecer ferramentas úteis para o sistema e para o ambiente Proxmox.
 
@@ -162,7 +162,7 @@ Certifique-se de revisar a documentação oficial de cada pacote para obter mais
 
 ## Atualizações e Suporte
 
-Para obter suporte ou relatar problemas, [abra uma issue](https://github.com/mathewalves/Proxmox-Debian12/issues).
+Para obter suporte ou relatar problemas, [abra uma issue](https://github.com/mathewalves/proxmox-debian13/issues).
 
 ## Licença
 

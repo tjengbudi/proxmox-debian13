@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Proxmox Setup v1.0.1
+# Proxmox Setup v1.1.0
 # by: Matheew Alves
 
-cd /Proxmox-Debian12
+cd /proxmox-debian13
 
 # Load configs files // Carregar os arquivos de configuração
 source ./configs/colors.conf
@@ -111,7 +111,7 @@ EOF
                 ;;
 
             "3")
-                whiptail --title "Network Configuration" --msgbox "You can configure the vmbr0 bridge later by running the script /Proxmox-Debian12/scripts/configure_bridge.sh, manually, or through the Proxmox web interface. Refer to the Proxmox documentation for more information." 15 60
+                whiptail --title "Network Configuration" --msgbox "You can configure the vmbr0 bridge later by running the script /proxmox-debian13/scripts/configure_bridge.sh, manually, or through the Proxmox web interface. Refer to the Proxmox documentation for more information." 15 60
                 exit 0
                 ;;
 
@@ -217,7 +217,7 @@ EOF
                 ;;
 
             "3")
-                whiptail --title "Configuração de Rede" --msgbox "Você pode configurar a bridge vmbr0 posteriormente executando o script /Proxmox-Debian12/scripts/configure_bridge.sh, manualmente ou através da interface web do Proxmox. Consulte a documentação do Proxmox para mais informações." 15 60
+                whiptail --title "Configuração de Rede" --msgbox "Você pode configurar a bridge vmbr0 posteriormente executando o script /proxmox-debian13/scripts/configure_bridge.sh, manualmente ou através da interface web do Proxmox. Consulte a documentação do Proxmox para mais informações." 15 60
                 exit 0
                 ;;
 
@@ -247,7 +247,7 @@ remove_start_script()
     done
 
     # Remove the lines added to /root/.bashrc
-    sed -i '/# Run script after login/,/\/Proxmox-Debian12\/scripts\/configure_bridge.sh/d' /root/.bashrc
+    sed -i '/# Run script after login/,/\/proxmox-debian13\/scripts\/configure_bridge.sh/d' /root/.bashrc
     echo -e "${blue}Removed automatic script configuration from /root/.bashrc.${normal}"
 }
 
@@ -269,15 +269,15 @@ main()
     if [ "$LANGUAGE" == "en" ]; then
         ask_reboot
         clear
-        whiptail --title "Installation Completed" --msgbox "Proxmox installation and network configuration completed successfully!\nRemember to configure Proxmox as needed." 15 60
-        whiptail --title "Network Configuration" --msgbox "You can configure the vmbr0 bridge later by running the script /Proxmox-Debian12/scripts/configure_bridge.sh or through the Proxmox web interface. Refer to the Proxmox documentation for more information." 15 60
+        whiptail --title "Installation Completed" --msgbox "Proxmox 9 installation and network configuration completed successfully!\nRemember to configure Proxmox as needed." 15 60
+        whiptail --title "Network Configuration" --msgbox "You can configure the vmbr0 bridge later by running the script /proxmox-debian13/scripts/configure_bridge.sh or through the Proxmox web interface. Refer to the Proxmox documentation for more information." 15 60
     else
         clear
-        whiptail --title "Instalação Concluída" --msgbox "Instalação e configuração de rede do Proxmox concluídas com sucesso!\nLembre-se de configurar o Proxmox conforme necessário." 15 60
-        whiptail --title "Configuração de Rede" --msgbox "Você pode configurar a bridge vmbr0 posteriormente executando o script /Proxmox-Debian12/scripts/configure_bridge.sh, ou através da interface web do Proxmox. Consulte a documentação do Proxmox para mais informações." 15 60
+        whiptail --title "Instalação Concluída" --msgbox "Instalação e configuração de rede do Proxmox 9 concluídas com sucesso!\nLembre-se de configurar o Proxmox conforme necessário." 15 60
+        whiptail --title "Configuração de Rede" --msgbox "Você pode configurar a bridge vmbr0 posteriormente executando o script /proxmox-debian13/scripts/configure_bridge.sh, ou através da interface web do Proxmox. Consulte a documentação do Proxmox para mais informações." 15 60
     fi
 
-    cd /Proxmox-Debian12
+    cd /proxmox-debian13
     ./scripts/welcome.sh
 }
 

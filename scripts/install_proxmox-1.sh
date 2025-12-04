@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Proxmox Setup v1.0.1
+# Proxmox Setup v1.1.0
 # by: Matheew Alves
 
-cd /Proxmox-Debian12
+cd /proxmox-debian13
 
 # Load configs files // Carregar os arquivos de configuração
 source ./configs/colors.conf
@@ -231,14 +231,14 @@ install_proxmox-2()
         echo -e "...${default}"
     fi
 
-    echo "deb [arch=amd64] http://download.proxmox.com/debian/pve bookworm pve-no-subscription" > /etc/apt/sources.list.d/pve-install-repo.list
+    echo "deb [arch=amd64] http://download.proxmox.com/debian/pve trixie pve-no-subscription" > /etc/apt/sources.list.d/pve-install-repo.list
 
-    wget https://enterprise.proxmox.com/debian/proxmox-release-bookworm.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg
+    wget https://enterprise.proxmox.com/debian/proxmox-release-trixie.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-trixie.gpg
 
     echo -e "${yellow}Checking Key...${default}"
 
     # Calculate the hash of the key
-    key_hash=$(sha512sum /etc/apt/trusted.gpg.d/proxmox-release-bookworm.gpg | cut -d ' ' -f1)
+    key_hash=$(sha512sum /etc/apt/trusted.gpg.d/proxmox-release-trixie.gpg | cut -d ' ' -f1)
 
     # Check if the key is empty
     if [ -z "$key_hash" ]; then
@@ -301,7 +301,7 @@ reboot_setup()
             # Add the script execution line at the end of the file
             echo "" >> "$PROFILE_FILE"
             echo "# Execute script after login" >> "$PROFILE_FILE"
-            echo "/Proxmox-Debian12/scripts/install_proxmox-2.sh" >> "$PROFILE_FILE"
+            echo "/proxmox-debian13/scripts/install_proxmox-2.sh" >> "$PROFILE_FILE"
             echo "" >> "$PROFILE_FILE"
 
             echo "Automatic configuration completed for user: $(basename "$user_home")."
@@ -311,7 +311,7 @@ reboot_setup()
     # Add the following lines at the end of the /root/.bashrc file
     echo "" >> /root/.bashrc
     echo "# Execute script after login" >> /root/.bashrc
-    echo "/Proxmox-Debian12/scripts/install_proxmox-2.sh" >> /root/.bashrc
+    echo "/proxmox-debian13/scripts/install_proxmox-2.sh" >> /root/.bashrc
     echo "" >> /root/.bashrc
 
     echo "Automatic configuration completed for the root user."

@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Proxmox Setup v1.0.1
+# Proxmox Setup v1.1.0
 # by: Matheew Alves
 
-cd /Proxmox-Debian12 && clear
+cd /proxmox-debian13 && clear
 
 # Load configs files // Carregar os arquivos de configuração
 source ./configs/*
@@ -59,8 +59,8 @@ welcome()
     echo -e "${cyan}            Script developed by: \e[1;92mhttps://github.com/mathewalves${normal}." && sleep 0.5
     echo ""
     echo ""
-    echo -e "${cyan} --> Welcome to the Proxmox Installation Script on Debian 12 ~~${default}" && sleep 0.5
-    echo -e "${blue} This script will install Proxmox on your Debian 12 and provide the option to install some additional packages...${default}" && sleep 0.5
+    echo -e "${cyan} --> Welcome to the Proxmox 9 Installation Script on Debian 13 ~~${default}" && sleep 0.5
+    echo -e "${blue} This script will install Proxmox 9 on your Debian 13 and provide the option to install some additional packages...${default}" && sleep 0.5
     echo ""
     # Adding reboot message
     echo -e "${yellow}WARNING: During the installation, the system may reboot several times. Avoid closing the script during installation!"
@@ -74,8 +74,8 @@ bem_vindo()
     echo -e "${cyan}            Script desenvolvido por: \e[1;92mhttps://github.com/mathewalves${default}." && sleep 0.5
     echo ""
     echo ""
-    echo -e "${cyan} --> Bem-vindo ao Script de Instalação do Proxmox no Debian 12 ~~${default}" && sleep 0.5
-    echo -e "${blue} Este script instalará o Proxmox no seu Debian 12 e oferecerá a opção de instalar alguns pacotes adicionais...${default}" && sleep 0.5
+    echo -e "${cyan} --> Bem-vindo ao Script de Instalação do Proxmox 9 no Debian 13 ~~${default}" && sleep 0.5
+    echo -e "${blue} Este script instalará o Proxmox 9 no seu Debian 13 e oferecerá a opção de instalar alguns pacotes adicionais...${default}" && sleep 0.5
     echo ""
     # Adicionando mensagem sobre reinicialização
     echo -e "${yellow}AVISO: Durante a instalação, o sistema pode reiniciar várias vezes. Evite Fechar o Script durante a instalação!"
@@ -286,7 +286,7 @@ main()
     echo -e "${red} | '_ \| '__/ _ \ \/ / '_ \` _ \ / _ \ \/ /         / __|/ _ \ __| | | | _  \\"
     echo -e "${red} | |_) | | | (_) >  <| | | | | | (_) >  <          \__ \  __/ |_| |_| | |_) |"
     echo -e "${red} | .__/|_|  \___/_/\_\_| |_| |_|\___/_/\_\  _____  |___/\___|\__|\__,_| .__/"
-    echo -e "${red} |_|                                       |_____|                    |_|    ${yellow}v1.0.1${default}"  
+    echo -e "${red} |_|                                       |_____|                    |_|    ${yellow}v1.1.0${default}"  
     echo -e "\e[0m"
     sleep 0.5
     if [ "$language" == "en" ]; then

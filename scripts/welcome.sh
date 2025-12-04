@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# Proxmox Setup v1.0.1
+# Proxmox Setup v1.1.0
 # by: Matheew Alves
 
-cd /Proxmox-Debian12
+cd /proxmox-debian13
 
 # Load configs files
 source ./configs/colors.conf
@@ -34,7 +34,7 @@ add_welcome()
             # Add the script execution line to the end of the file
             echo "" >> "$PROFILE_FILE"
             echo "# Execute script after login" >> "$PROFILE_FILE"
-            echo "/Proxmox-Debian12/scripts/custom_welcome.sh" >> "$PROFILE_FILE"
+            echo "/proxmox-debian13/scripts/custom_welcome.sh" >> "$PROFILE_FILE"
             echo "" >> "$PROFILE_FILE"
 
             echo "Automatic configuration completed for user: $(basename "$user_home")."
@@ -43,7 +43,7 @@ add_welcome()
         # Add the following lines to the end of the /root/.bashrc file
         echo "" >> /root/.bashrc
         echo "# Execute script after login" >> /root/.bashrc
-        echo "/Proxmox-Debian12/scripts/custom_welcome.sh" >> /root/.bashrc
+        echo "/proxmox-debian13/scripts/custom_welcome.sh" >> /root/.bashrc
         echo "" >> /root/.bashrc
 
         echo "Automatic configuration completed for the root user."
@@ -55,12 +55,12 @@ ask_reboot()
     # Prompt for restarting the computer using whiptail
     if whiptail --yesno "(Optional) Do you want to restart your computer now?" 10 50 --yes-button "Yes" --no-button "No"; then
         # Messages after choosing to restart
-        whiptail --title "Installation Completed" --msgbox "Proxmox installation and network configuration completed successfully!\nRemember to configure Proxmox as needed." 15 60
+        whiptail --title "Installation Completed" --msgbox "Proxmox 9 installation and network configuration completed successfully!\nRemember to configure Proxmox as needed." 15 60
         whiptail --title "Restarting the System" --msgbox "Restarting the system..." 10 50
         systemctl reboot
     else
         # Message after choosing not to restart
-        whiptail --title "Installation Completed" --msgbox "Proxmox installation and network configuration completed successfully!\nRemember to configure Proxmox as needed." 15 60
+        whiptail --title "Installation Completed" --msgbox "Proxmox 9 installation and network configuration completed successfully!\nRemember to configure Proxmox as needed." 15 60
     fi
 }
 
