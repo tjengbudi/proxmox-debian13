@@ -82,56 +82,91 @@ proxmox-ve_packages()
         echo -e "${yellow}Atualizando listas de pacotes e corrigindo dependências...${default}"
     fi
 
-    apt-get update
-    apt-get install -f -y
-    dpkg --configure -a
+    if command -v nala &> /dev/null; then
+        # Use nala if installed
+        nala update
+        dpkg --configure -a
 
-    # Install packages using apt (more reliable for complex dependencies)
-    if [ "$LANGUAGE" == "en" ]; then
-        echo -e "${cyan}Installing Proxmox VE and required packages...${default}"
-    else
-        echo -e "${cyan}Instalando Proxmox VE e pacotes necessários...${default}"
-    fi
-
-    if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
-        proxmox-ve \
-        postfix \
-        open-iscsi \
-        chrony; then
+        # Install packages using nala
         if [ "$LANGUAGE" == "en" ]; then
-            echo -e "${red}Error: Package installation failed. Trying to fix dependencies...${default}"
+            echo -e "${cyan}Installing Proxmox VE and required packages with nala...${default}"
         else
-            echo -e "${red}Erro: Instalação de pacotes falhou. Tentando corrigir dependências...${default}"
+            echo -e "${cyan}Instalando Proxmox VE e pacotes necessários com nala...${default}"
         fi
 
-        apt-get install -f -y
-
-        # Retry installation
-        if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
-            proxmox-ve \
-            postfix \
-            open-iscsi \
-            chrony; then
+        if ! nala install -y proxmox-ve postfix open-iscsi chrony; then
             if [ "$LANGUAGE" == "en" ]; then
                 echo -e "${red}CRITICAL ERROR: Failed to install Proxmox VE packages!${default}"
                 echo -e "${red}Installation cannot continue. Please check the error messages above.${default}"
                 echo -e "${yellow}Common solutions:"
                 echo -e "  1. Check your internet connection"
                 echo -e "  2. Check repository configuration in /etc/apt/sources.list.d/"
-                echo -e "  3. Run: apt-get update"
-                echo -e "  4. Run: apt-get install -f"
-                echo -e "  5. Check for held packages: dpkg --get-selections | grep hold${default}"
+                echo -e "  3. Run: nala update"
+                echo -e "  4. Check for held packages: dpkg --get-selections | grep hold${default}"
             else
                 echo -e "${red}ERRO CRÍTICO: Falha ao instalar pacotes do Proxmox VE!${default}"
                 echo -e "${red}A instalação não pode continuar. Verifique as mensagens de erro acima.${default}"
                 echo -e "${yellow}Soluções comuns:"
                 echo -e "  1. Verificar conexão com a internet"
                 echo -e "  2. Verificar configuração dos repositórios em /etc/apt/sources.list.d/"
-                echo -e "  3. Executar: apt-get update"
-                echo -e "  4. Executar: apt-get install -f"
-                echo -e "  5. Verificar pacotes retidos: dpkg --get-selections | grep hold${default}"
+                echo -e "  3. Executar: nala update"
+                echo -e "  4. Verificar pacotes retidos: dpkg --get-selections | grep hold${default}"
             fi
             exit 1
+        fi
+    else
+        # Use apt-get if nala is not installed
+        apt-get update
+        apt-get install -f -y
+        dpkg --configure -a
+
+        # Install packages using apt-get
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${cyan}Installing Proxmox VE and required packages...${default}"
+        else
+            echo -e "${cyan}Instalando Proxmox VE e pacotes necessários...${default}"
+        fi
+
+        if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+            proxmox-ve \
+            postfix \
+            open-iscsi \
+            chrony; then
+            if [ "$LANGUAGE" == "en" ]; then
+                echo -e "${red}Error: Package installation failed. Trying to fix dependencies...${default}"
+            else
+                echo -e "${red}Erro: Instalação de pacotes falhou. Tentando corrigir dependências...${default}"
+            fi
+
+            apt-get install -f -y
+
+            # Retry installation
+            if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+                proxmox-ve \
+                postfix \
+                open-iscsi \
+                chrony; then
+                if [ "$LANGUAGE" == "en" ]; then
+                    echo -e "${red}CRITICAL ERROR: Failed to install Proxmox VE packages!${default}"
+                    echo -e "${red}Installation cannot continue. Please check the error messages above.${default}"
+                    echo -e "${yellow}Common solutions:"
+                    echo -e "  1. Check your internet connection"
+                    echo -e "  2. Check repository configuration in /etc/apt/sources.list.d/"
+                    echo -e "  3. Run: apt-get update"
+                    echo -e "  4. Run: apt-get install -f"
+                    echo -e "  5. Check for held packages: dpkg --get-selections | grep hold${default}"
+                else
+                    echo -e "${red}ERRO CRÍTICO: Falha ao instalar pacotes do Proxmox VE!${default}"
+                    echo -e "${red}A instalação não pode continuar. Verifique as mensagens de erro acima.${default}"
+                    echo -e "${yellow}Soluções comuns:"
+                    echo -e "  1. Verificar conexão com a internet"
+                    echo -e "  2. Verificar configuração dos repositórios em /etc/apt/sources.list.d/"
+                    echo -e "  3. Executar: apt-get update"
+                    echo -e "  4. Executar: apt-get install -f"
+                    echo -e "  5. Verificar pacotes retidos: dpkg --get-selections | grep hold${default}"
+                fi
+                exit 1
+            fi
         fi
     fi
 
@@ -176,13 +211,27 @@ remove_kernel()
         echo -e "${yellow}Removendo kernel antigo do Debian...${default}"
     fi
 
-    if ! apt-get remove -y linux-image-amd64 'linux-image-6.12*'; then
-        if [ "$LANGUAGE" == "en" ]; then
-            echo -e "${yellow}WARNING: Failed to remove old kernel. This is not critical.${default}"
-            echo -e "${yellow}You can manually remove it later with: apt-get remove linux-image-amd64${default}"
-        else
-            echo -e "${yellow}AVISO: Falha ao remover kernel antigo. Isso não é crítico.${default}"
-            echo -e "${yellow}Você pode removê-lo manualmente depois com: apt-get remove linux-image-amd64${default}"
+    if command -v nala &> /dev/null; then
+        # Use nala if installed
+        if ! nala remove -y linux-image-amd64 'linux-image-6.12*'; then
+            if [ "$LANGUAGE" == "en" ]; then
+                echo -e "${yellow}WARNING: Failed to remove old kernel. This is not critical.${default}"
+                echo -e "${yellow}You can manually remove it later with: nala remove linux-image-amd64${default}"
+            else
+                echo -e "${yellow}AVISO: Falha ao remover kernel antigo. Isso não é crítico.${default}"
+                echo -e "${yellow}Você pode removê-lo manualmente depois com: nala remove linux-image-amd64${default}"
+            fi
+        fi
+    else
+        # Use apt-get if nala is not installed
+        if ! apt-get remove -y linux-image-amd64 'linux-image-6.12*'; then
+            if [ "$LANGUAGE" == "en" ]; then
+                echo -e "${yellow}WARNING: Failed to remove old kernel. This is not critical.${default}"
+                echo -e "${yellow}You can manually remove it later with: apt-get remove linux-image-amd64${default}"
+            else
+                echo -e "${yellow}AVISO: Falha ao remover kernel antigo. Isso não é crítico.${default}"
+                echo -e "${yellow}Você pode removê-lo manualmente depois com: apt-get remove linux-image-amd64${default}"
+            fi
         fi
     fi
 

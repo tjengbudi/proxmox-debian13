@@ -277,22 +277,45 @@ install_proxmox-2()
         echo -e "${cyan}Atualizando pacotes do sistema...${default}"
     fi
 
-    if ! apt-get update; then
-        if [ "$LANGUAGE" == "en" ]; then
-            echo -e "${red}CRITICAL ERROR: Failed to update package lists!${default}"
-            echo -e "${red}Please check your internet connection and repository configuration.${default}"
-        else
-            echo -e "${red}ERRO CRÍTICO: Falha ao atualizar listas de pacotes!${default}"
-            echo -e "${red}Verifique sua conexão e configuração dos repositórios.${default}"
+    if command -v nala &> /dev/null; then
+        # Use nala if installed
+        if ! nala update; then
+            if [ "$LANGUAGE" == "en" ]; then
+                echo -e "${red}CRITICAL ERROR: Failed to update package lists!${default}"
+                echo -e "${red}Please check your internet connection and repository configuration.${default}"
+            else
+                echo -e "${red}ERRO CRÍTICO: Falha ao atualizar listas de pacotes!${default}"
+                echo -e "${red}Verifique sua conexão e configuração dos repositórios.${default}"
+            fi
+            exit 1
         fi
-        exit 1
-    fi
 
-    if ! apt-get -y full-upgrade; then
-        if [ "$LANGUAGE" == "en" ]; then
-            echo -e "${yellow}WARNING: System upgrade had some issues, but continuing...${default}"
-        else
-            echo -e "${yellow}AVISO: Atualização do sistema teve problemas, mas continuando...${default}"
+        if ! nala upgrade -y; then
+            if [ "$LANGUAGE" == "en" ]; then
+                echo -e "${yellow}WARNING: System upgrade had some issues, but continuing...${default}"
+            else
+                echo -e "${yellow}AVISO: Atualização do sistema teve problemas, mas continuando...${default}"
+            fi
+        fi
+    else
+        # Use apt-get if nala is not installed
+        if ! apt-get update; then
+            if [ "$LANGUAGE" == "en" ]; then
+                echo -e "${red}CRITICAL ERROR: Failed to update package lists!${default}"
+                echo -e "${red}Please check your internet connection and repository configuration.${default}"
+            else
+                echo -e "${red}ERRO CRÍTICO: Falha ao atualizar listas de pacotes!${default}"
+                echo -e "${red}Verifique sua conexão e configuração dos repositórios.${default}"
+            fi
+            exit 1
+        fi
+
+        if ! apt-get -y full-upgrade; then
+            if [ "$LANGUAGE" == "en" ]; then
+                echo -e "${yellow}WARNING: System upgrade had some issues, but continuing...${default}"
+            else
+                echo -e "${yellow}AVISO: Atualização do sistema teve problemas, mas continuando...${default}"
+            fi
         fi
     fi
 
@@ -312,25 +335,50 @@ install_proxmox-3()
     fi
 
     # Install Proxmox kernel with error handling
-    if ! apt-get install -y proxmox-default-kernel; then
-        if [ "$LANGUAGE" == "en" ]; then
-            echo -e "${red}CRITICAL ERROR: Failed to install Proxmox kernel!${default}"
-            echo -e "${red}Installation cannot continue. Please check the error messages above.${default}"
-            echo -e "${yellow}You may need to:"
-            echo -e "  1. Check your internet connection"
-            echo -e "  2. Run: apt-get update"
-            echo -e "  3. Run: apt-get install -f"
-            echo -e "  4. Try running this script again${default}"
-        else
-            echo -e "${red}ERRO CRÍTICO: Falha ao instalar kernel do Proxmox!${default}"
-            echo -e "${red}A instalação não pode continuar. Verifique as mensagens de erro acima.${default}"
-            echo -e "${yellow}Você pode precisar:"
-            echo -e "  1. Verificar sua conexão com a internet"
-            echo -e "  2. Executar: apt-get update"
-            echo -e "  3. Executar: apt-get install -f"
-            echo -e "  4. Tentar executar este script novamente${default}"
+    if command -v nala &> /dev/null; then
+        # Use nala if installed
+        if ! nala install -y proxmox-default-kernel; then
+            if [ "$LANGUAGE" == "en" ]; then
+                echo -e "${red}CRITICAL ERROR: Failed to install Proxmox kernel!${default}"
+                echo -e "${red}Installation cannot continue. Please check the error messages above.${default}"
+                echo -e "${yellow}You may need to:"
+                echo -e "  1. Check your internet connection"
+                echo -e "  2. Run: nala update"
+                echo -e "  3. Run: nala install -f"
+                echo -e "  4. Try running this script again${default}"
+            else
+                echo -e "${red}ERRO CRÍTICO: Falha ao instalar kernel do Proxmox!${default}"
+                echo -e "${red}A instalação não pode continuar. Verifique as mensagens de erro acima.${default}"
+                echo -e "${yellow}Você pode precisar:"
+                echo -e "  1. Verificar sua conexão com a internet"
+                echo -e "  2. Executar: nala update"
+                echo -e "  3. Executar: nala install -f"
+                echo -e "  4. Tentar executar este script novamente${default}"
+            fi
+            exit 1
         fi
-        exit 1
+    else
+        # Use apt-get if nala is not installed
+        if ! apt-get install -y proxmox-default-kernel; then
+            if [ "$LANGUAGE" == "en" ]; then
+                echo -e "${red}CRITICAL ERROR: Failed to install Proxmox kernel!${default}"
+                echo -e "${red}Installation cannot continue. Please check the error messages above.${default}"
+                echo -e "${yellow}You may need to:"
+                echo -e "  1. Check your internet connection"
+                echo -e "  2. Run: apt-get update"
+                echo -e "  3. Run: apt-get install -f"
+                echo -e "  4. Try running this script again${default}"
+            else
+                echo -e "${red}ERRO CRÍTICO: Falha ao instalar kernel do Proxmox!${default}"
+                echo -e "${red}A instalação não pode continuar. Verifique as mensagens de erro acima.${default}"
+                echo -e "${yellow}Você pode precisar:"
+                echo -e "  1. Verificar sua conexão com a internet"
+                echo -e "  2. Executar: apt-get update"
+                echo -e "  3. Executar: apt-get install -f"
+                echo -e "  4. Tentar executar este script novamente${default}"
+            fi
+            exit 1
+        fi
     fi
 
     if [ "$LANGUAGE" == "en" ]; then
