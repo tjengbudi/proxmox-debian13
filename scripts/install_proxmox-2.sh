@@ -95,14 +95,14 @@ proxmox-ve_packages()
     # Always use apt-get for Proxmox VE installation (more reliable for complex dependencies)
     # Note: nala cannot handle complex Proxmox dependencies properly
     if [ "$LANGUAGE" == "en" ]; then
-        echo -e "${cyan}Installing Proxmox VE and required packages...${default}"
+        echo -e "${cyan}Installing Proxmox VE and required packages (without Postfix)...${default}"
     else
-        echo -e "${cyan}Instalando Proxmox VE e pacotes necessários...${default}"
+        echo -e "${cyan}Instalando Proxmox VE e pacotes necessários (sem Postfix)...${default}"
     fi
 
+    # Install Proxmox VE core packages first (without postfix for now)
     if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
         proxmox-ve \
-        postfix \
         open-iscsi \
         chrony; then
         if [ "$LANGUAGE" == "en" ]; then
@@ -116,7 +116,6 @@ proxmox-ve_packages()
         # Retry installation
         if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
             proxmox-ve \
-            postfix \
             open-iscsi \
             chrony; then
             if [ "$LANGUAGE" == "en" ]; then
@@ -139,6 +138,39 @@ proxmox-ve_packages()
                 echo -e "  5. Verificar pacotes retidos: dpkg --get-selections | grep hold${default}"
             fi
             exit 1
+        fi
+    fi
+
+    # Install Postfix separately with interactive configuration dialog
+    # This allows users to configure email settings (required for Proxmox email notifications)
+    if [ "$LANGUAGE" == "en" ]; then
+        echo -e "${cyan}Installing Postfix mail server...${default}"
+        echo -e "${yellow}==================================================================${default}"
+        echo -e "${yellow}You will now be prompted to configure Postfix for email notifications.${default}"
+        echo -e "${yellow}Recommendations:${default}"
+        echo -e "${yellow}  - Select: 'Internet Site'${default}"
+        echo -e "${yellow}  - System mail name: Enter your server's FQDN (e.g., pve.example.com)${default}"
+        echo -e "${yellow}==================================================================${default}"
+    else
+        echo -e "${cyan}Instalando servidor de email Postfix...${default}"
+        echo -e "${yellow}==================================================================${default}"
+        echo -e "${yellow}Agora você será solicitado a configurar o Postfix para notificações por email.${default}"
+        echo -e "${yellow}Recomendações:${default}"
+        echo -e "${yellow}  - Selecione: 'Site da Internet'${default}"
+        echo -e "${yellow}  - Nome do email do sistema: Digite o FQDN do seu servidor (ex: pve.exemplo.com)${default}"
+        echo -e "${yellow}==================================================================${default}"
+    fi
+
+    # Install postfix without noninteractive mode to show configuration dialog
+    if ! apt-get install -y postfix; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${red}WARNING: Failed to install Postfix!${default}"
+            echo -e "${yellow}Email notifications may not work properly.${default}"
+            echo -e "${yellow}You can configure Postfix later with: dpkg-reconfigure postfix${default}"
+        else
+            echo -e "${red}AVISO: Falha ao instalar Postfix!${default}"
+            echo -e "${yellow}Notificações por email podem não funcionar corretamente.${default}"
+            echo -e "${yellow}Você pode configurar o Postfix depois com: dpkg-reconfigure postfix${default}"
         fi
     fi
 
