@@ -75,12 +75,42 @@ proxmox-ve_packages()
         echo -e "...${default}"
     fi
 
-    if command -v nala &> /dev/null; then
-        # Execute with 'nala' if installed
-        nala install -y proxmox-ve postfix open-iscsi chrony
+    # Update package lists and fix any broken dependencies first
+    if [ "$LANGUAGE" == "en" ]; then
+        echo -e "${yellow}Updating package lists and fixing dependencies...${default}"
     else
-        # Execute with 'apt' if 'nala' is not installed
-        apt install -y proxmox-ve postfix open-iscsi chrony
+        echo -e "${yellow}Atualizando listas de pacotes e corrigindo dependências...${default}"
+    fi
+
+    apt-get update
+    apt-get install -f -y
+    dpkg --configure -a
+
+    # Install packages using apt (more reliable for complex dependencies)
+    if [ "$LANGUAGE" == "en" ]; then
+        echo -e "${cyan}Installing Proxmox VE and required packages...${default}"
+    else
+        echo -e "${cyan}Instalando Proxmox VE e pacotes necessários...${default}"
+    fi
+
+    DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+        proxmox-ve \
+        postfix \
+        open-iscsi \
+        chrony
+
+    if [ $? -ne 0 ]; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${red}Error: Package installation failed. Trying to fix...${default}"
+        else
+            echo -e "${red}Erro: Instalação de pacotes falhou. Tentando corrigir...${default}"
+        fi
+        apt-get install -f -y
+        DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+            proxmox-ve \
+            postfix \
+            open-iscsi \
+            chrony
     fi
 }
 
