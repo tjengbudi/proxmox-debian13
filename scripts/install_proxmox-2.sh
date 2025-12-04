@@ -82,91 +82,63 @@ proxmox-ve_packages()
         echo -e "${yellow}Atualizando listas de pacotes e corrigindo dependências...${default}"
     fi
 
+    # Use nala for update if available, otherwise use apt-get
     if command -v nala &> /dev/null; then
-        # Use nala if installed
         nala update
-        dpkg --configure -a
-
-        # Install packages using nala
-        if [ "$LANGUAGE" == "en" ]; then
-            echo -e "${cyan}Installing Proxmox VE and required packages with nala...${default}"
-        else
-            echo -e "${cyan}Instalando Proxmox VE e pacotes necessários com nala...${default}"
-        fi
-
-        if ! nala install -y proxmox-ve postfix open-iscsi chrony; then
-            if [ "$LANGUAGE" == "en" ]; then
-                echo -e "${red}CRITICAL ERROR: Failed to install Proxmox VE packages!${default}"
-                echo -e "${red}Installation cannot continue. Please check the error messages above.${default}"
-                echo -e "${yellow}Common solutions:"
-                echo -e "  1. Check your internet connection"
-                echo -e "  2. Check repository configuration in /etc/apt/sources.list.d/"
-                echo -e "  3. Run: nala update"
-                echo -e "  4. Check for held packages: dpkg --get-selections | grep hold${default}"
-            else
-                echo -e "${red}ERRO CRÍTICO: Falha ao instalar pacotes do Proxmox VE!${default}"
-                echo -e "${red}A instalação não pode continuar. Verifique as mensagens de erro acima.${default}"
-                echo -e "${yellow}Soluções comuns:"
-                echo -e "  1. Verificar conexão com a internet"
-                echo -e "  2. Verificar configuração dos repositórios em /etc/apt/sources.list.d/"
-                echo -e "  3. Executar: nala update"
-                echo -e "  4. Verificar pacotes retidos: dpkg --get-selections | grep hold${default}"
-            fi
-            exit 1
-        fi
     else
-        # Use apt-get if nala is not installed
         apt-get update
-        apt-get install -f -y
-        dpkg --configure -a
+    fi
 
-        # Install packages using apt-get
+    apt-get install -f -y
+    dpkg --configure -a
+
+    # Always use apt-get for Proxmox VE installation (more reliable for complex dependencies)
+    # Note: nala cannot handle complex Proxmox dependencies properly
+    if [ "$LANGUAGE" == "en" ]; then
+        echo -e "${cyan}Installing Proxmox VE and required packages...${default}"
+    else
+        echo -e "${cyan}Instalando Proxmox VE e pacotes necessários...${default}"
+    fi
+
+    if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+        proxmox-ve \
+        postfix \
+        open-iscsi \
+        chrony; then
         if [ "$LANGUAGE" == "en" ]; then
-            echo -e "${cyan}Installing Proxmox VE and required packages...${default}"
+            echo -e "${red}Error: Package installation failed. Trying to fix dependencies...${default}"
         else
-            echo -e "${cyan}Instalando Proxmox VE e pacotes necessários...${default}"
+            echo -e "${red}Erro: Instalação de pacotes falhou. Tentando corrigir dependências...${default}"
         fi
 
+        apt-get install -f -y
+
+        # Retry installation
         if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
             proxmox-ve \
             postfix \
             open-iscsi \
             chrony; then
             if [ "$LANGUAGE" == "en" ]; then
-                echo -e "${red}Error: Package installation failed. Trying to fix dependencies...${default}"
+                echo -e "${red}CRITICAL ERROR: Failed to install Proxmox VE packages!${default}"
+                echo -e "${red}Installation cannot continue. Please check the error messages above.${default}"
+                echo -e "${yellow}Common solutions:"
+                echo -e "  1. Check your internet connection"
+                echo -e "  2. Check repository configuration in /etc/apt/sources.list.d/"
+                echo -e "  3. Run: apt-get update"
+                echo -e "  4. Run: apt-get install -f"
+                echo -e "  5. Check for held packages: dpkg --get-selections | grep hold${default}"
             else
-                echo -e "${red}Erro: Instalação de pacotes falhou. Tentando corrigir dependências...${default}"
+                echo -e "${red}ERRO CRÍTICO: Falha ao instalar pacotes do Proxmox VE!${default}"
+                echo -e "${red}A instalação não pode continuar. Verifique as mensagens de erro acima.${default}"
+                echo -e "${yellow}Soluções comuns:"
+                echo -e "  1. Verificar conexão com a internet"
+                echo -e "  2. Verificar configuração dos repositórios em /etc/apt/sources.list.d/"
+                echo -e "  3. Executar: apt-get update"
+                echo -e "  4. Executar: apt-get install -f"
+                echo -e "  5. Verificar pacotes retidos: dpkg --get-selections | grep hold${default}"
             fi
-
-            apt-get install -f -y
-
-            # Retry installation
-            if ! DEBIAN_FRONTEND=noninteractive apt-get install -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
-                proxmox-ve \
-                postfix \
-                open-iscsi \
-                chrony; then
-                if [ "$LANGUAGE" == "en" ]; then
-                    echo -e "${red}CRITICAL ERROR: Failed to install Proxmox VE packages!${default}"
-                    echo -e "${red}Installation cannot continue. Please check the error messages above.${default}"
-                    echo -e "${yellow}Common solutions:"
-                    echo -e "  1. Check your internet connection"
-                    echo -e "  2. Check repository configuration in /etc/apt/sources.list.d/"
-                    echo -e "  3. Run: apt-get update"
-                    echo -e "  4. Run: apt-get install -f"
-                    echo -e "  5. Check for held packages: dpkg --get-selections | grep hold${default}"
-                else
-                    echo -e "${red}ERRO CRÍTICO: Falha ao instalar pacotes do Proxmox VE!${default}"
-                    echo -e "${red}A instalação não pode continuar. Verifique as mensagens de erro acima.${default}"
-                    echo -e "${yellow}Soluções comuns:"
-                    echo -e "  1. Verificar conexão com a internet"
-                    echo -e "  2. Verificar configuração dos repositórios em /etc/apt/sources.list.d/"
-                    echo -e "  3. Executar: apt-get update"
-                    echo -e "  4. Executar: apt-get install -f"
-                    echo -e "  5. Verificar pacotes retidos: dpkg --get-selections | grep hold${default}"
-                fi
-                exit 1
-            fi
+            exit 1
         fi
     fi
 
