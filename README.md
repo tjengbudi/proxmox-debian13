@@ -1,177 +1,148 @@
-[![Version](https://img.shields.io/badge/Version-1.0.1-red.svg)](version) [![License](https://img.shields.io/badge/License-BSD--Clause_3-green.svg)](LICENSE) [![Readme em Português e Inglês](https://img.shields.io/badge/README-en%2Fpt--br-blue)](#)
+[![Version](https://img.shields.io/badge/Version-1.1.0-red.svg)](version) [![License](https://img.shields.io/badge/License-BSD--Clause_3-green.svg)](LICENSE)
 
 ```bash
-                                                                  _               
-             _ __  _ __ _____  ___ __ ___   _____  __    ___  ___| |_ _   _ _ __  
-            | '_ \| '__/ _ \ \/ / '_ ` _ \ / _ \ \/ /   / __|/ _ \ __| | | | '_ \ 
+                                                                  _
+             _ __  _ __ _____  ___ __ ___   _____  __    ___  ___| |_ _   _ _ __
+            | '_ \| '__/ _ \ \/ / '_ ` _ \ / _ \ \/ /   / __|/ _ \ __| | | | '_ \
             | |_) | | | (_) >  <| | | | | | (_) >  <    \__ \  __/ |_| |_| | |_) |
-            | .__/|_|  \___/_/\_\_| |_| |_|\___/_/\_\___|___/\___|\__|\__,_| .__/ 
-            |_|                                    |_____|                 |_|     v1.0.1  
+            | .__/|_|  \___/_/\_\_| |_| |_|\___/_/\_\___|___/\___|\__|\__,_| .__/
+            |_|                                    |_____|                 |_|     v1.1.0
 ```
 
-[![Language](https://img.shields.io/badge/🌎-English:-blue)](#)
+# Proxmox VE 9 Installer on Debian 13 Trixie
 
-# Proxmox VE Installer on Debian 13 Trixie
-
-This setup/script automates the installation of Proxmox 9 on Debian 13 and the creation of a bridge to facilitate network configuration.
+This setup/script automates the installation of **Proxmox VE 9** on **Debian 13 Trixie** and creates a network bridge to facilitate configuration.
 
 **Note: This script is designed to run on a Debian 13 system. Make sure to have superuser permissions before executing the script.**
 
 ## Requirements
 
-- Installed Debian 13 Trixie
-- Superuser permissions
+- Debian 13 Trixie installed
+- Superuser (root) permissions
   ```bash
   su root
   ```
-- Installed Git
+- Git installed
   ```bash
   apt install git
   ```
-- (Important) Clone the repository from the directory:
-
+- Clone the repository from the root directory:
   ```bash
-   cd /
+  cd /
   ```
 
-## Usage Instructions
+## Installation Instructions
 
-1. Clone the repository to your Debian 13 system.
+### 1. Clone the repository
+
 ```bash
-# With git already installed on your machine, clone the repository
+# Clone the repository to your Debian 13 system
 git clone https://github.com/tjengbudi/proxmox-debian13.git
 
-# Access the downloaded folder with the 'cd' command
+# Navigate to the downloaded folder
 cd /proxmox-debian13
 ```
-2. Make the script executable.
+
+### 2. Make the script executable
+
 ```bash
-# Give execution permission to the setup
 chmod +x ./setup
 ```
 
-3. Run the setup.
+### 3. Run the setup
+
 ```bash
 ./setup
 ```
 
-## Additional Packages
-
-The script installs some additional packages to enhance the experience and provide additional functionalities. The packages include:
-
-1. **'sudo':** Essential tool to grant administrative permissions to the selected user.
-2. **'nala':** An application that enhances the graphical interface of 'apt'.
-3. **'neofetch':** A system information display tool with a colorful and user-friendly interface.
-4. **'net-tools':** A classic set of network utilities, such as ifconfig and route.
-5. **'nmap':** A powerful network scanning and security auditing tool.
-
-Make sure to review the official documentation for each package for more details on their functionalities.
+The installer will guide you through the installation process with an interactive menu, allowing you to:
+- Choose your preferred language (English or Portuguese)
+- Optionally install additional packages
+- Configure network bridge (vmbr0) manually or via DHCP
 
 ## Features
 
-1. **Proxmox 9 Installation:** The script automatically installs Proxmox 9 on the Debian 13 base.
+### 1. Proxmox VE 9 Installation
+The script automatically installs **Proxmox VE 9** on the Debian 13 Trixie base system, including:
+- Proxmox VE repository configuration for Debian 13 (Trixie)
+- GPG key verification for security
+- Proxmox default kernel installation
+- Automatic system updates and upgrades
 
-2. **Additional Packages:** These additional packages are installed to enhance the user experience and provide useful tools for the system and Proxmox environment.
+### 2. Network Bridge Configuration
+Facilitates network configuration by creating a bridge named **vmbr0**. You can choose to:
+- Configure manually with static IP address
+- Use DHCP for automatic configuration
+- Configure later through Proxmox web interface
 
-3. **Bridge Creation:** Facilitates network configuration by creating a bridge named vmbr0. You can choose to configure manually or use DHCP.
+### 3. Additional Packages (Optional)
+The script offers optional installation of useful packages:
+- **sudo** - Essential tool to grant administrative permissions
+- **nala** - Enhanced APT package manager with better UI
+- **neofetch** - System information display tool
+- **net-tools** - Classic network utilities (ifconfig, route, etc.)
+- **nmap** - Network scanning and security auditing tool
 
-## Updates and Support
+### 4. Interactive Installation
+- Multi-language support (English/Portuguese)
+- Whiptail-based interactive menus
+- Automatic reboot handling between installation stages
+- Custom welcome screen option
 
-For support or to report issues, [ open an issue](https://github.com/tjengbudi/proxmox-debian13/issues).
+## What's New in Version 1.1.0
+
+- **Upgraded to Proxmox VE 9** (from version 8)
+- **Upgraded to Debian 13 Trixie** (from Debian 12 Bookworm)
+- Updated repository URLs and GPG keys for Debian 13
+- Updated kernel removal pattern (linux-image-6.12*)
+- All paths use lowercase for consistency
+- Verified compatibility with all dependencies
+
+## Technical Details
+
+### Repository Configuration
+- **Repository URL:** `http://download.proxmox.com/debian/pve trixie pve-no-subscription`
+- **GPG Key:** `https://enterprise.proxmox.com/debian/proxmox-release-trixie.gpg`
+
+### Installed Components
+- **Proxmox VE 9** packages
+- **Proxmox default kernel** for Debian 13
+- **Postfix** - Mail transfer agent
+- **Open-iSCSI** - iSCSI initiator
+- **Chrony** - NTP time synchronization
+
+### Post-Installation Access
+After successful installation, access the Proxmox web interface at:
+```
+https://[your-server-ip]:8006/
+```
+- **Username:** root
+- **Password:** (your root password)
+
+## System Requirements
+
+- Minimum **1.5GB RAM** (recommended 2GB or more)
+- 64-bit processor with virtualization support (Intel VT-x or AMD-V)
+- At least **20GB** disk space
+- Network interface with internet connectivity
+
+## Support and Issues
+
+For support or to report issues, please [open an issue](https://github.com/tjengbudi/proxmox-debian13/issues).
 
 ## License
+
 This script is distributed under the [BSD 3-Clause License](https://opensource.org/licenses/BSD-3-Clause).
 
-## Acknowledgments
+## Credits
 
-Thank you for using the Proxmox 9 Installation Script on Debian 13
-If you come across any improvements or would like to contribute, feel free to create a pull request. Your contributions are welcome to enhance this script.
+- Original script by [Matheew Alves](https://github.com/mathewalves)
+- Modified and updated to Proxmox VE 9 / Debian 13 by [tjengbudi](https://github.com/tjengbudi)
+
+## Contributing
+
+If you find opportunities for improvement or would like to contribute, feel free to create a pull request. Contributions are welcome to enhance this script.
 
 We appreciate your participation in the community and your contribution to the ongoing development of this script.
 
-**Enjoy Proxmox!** 🚀
-
----
-
-[![Language](https://img.shields.io/badge/🇧🇷-PT--BR:-green)](#)
-
-
-# Instalador do Proxmox VE no Debian 13 Trixie
-
-Este setup/script automatiza a instalação do Proxmox 9 sobre o Debian 13 e a criação da bridge para facilitar a configuração de redes.
-
-**Nota: Este script foi projetado para ser executado em um sistema Debian 13. Certifique-se de ter permissões de superusuário antes de executar o script.**
-
-## Requisitos
-
-- Debian 13 Trixie instalado
-- Permissões de superusuário
-  ```bash
-  su root
-  ```
-- Git instalado
-  ```bash
-  apt install git
-  ```
-- (Importante) Clonar o repositório apartir do diretório:
-
-  ```bash
-   cd /
-  ```
-
-## Instruções de Uso
-
-1. Clone o repositório para o seu sistema Debian 13.
-```bash
-# Com o git já instalado na sua máquina clone o repositório
-git clone https://github.com/tjengbudi/proxmox-debian13.git
-
-# Acesse a pasta baixada com o comando 'cd'
-cd /proxmox-debian13
-```
-2. Torne o script executável.
-```bash
-# Dá permissão de execução para o setup
-chmod +x ./setup
-```
-
-3. Execute o setup.
-```bash
-./setup
-```
-
-## Pacotes Adicionais
-
-O script instala alguns pacotes adicionais para melhorar a experiência e fornecer funcionalidades adicionais. Os pacotes incluem:
-
-1. **'sudo':** Ferramenta essencial para conceder permissões administrativas ao usuário selecionado.
-2. **'nala':** Uma aplicação que melhora a interface gráfica do 'apt'.
-3. **'neofetch':** Uma ferramenta de exibição de informações do sistema com uma interface colorida e amigável.
-4. **'net-tools':** Conjunto de utilitários clássicos de rede, como ifconfig e route.
-5. **'nmap':** Uma poderosa ferramenta de exploração de rede e auditoria de segurança.
-
-Certifique-se de revisar a documentação oficial de cada pacote para obter mais detalhes sobre suas funcionalidades.
-
-## Funcionalidades
-
-1. **Instalação do Proxmox 9:** O script instala automaticamente o Proxmox 9 sobre a base do Debian 13.
-
-2. **Pacotes Adicionais:** Esses pacotes adicionais são instalados para melhorar a experiência do usuário e fornecer ferramentas úteis para o sistema e para o ambiente Proxmox.
-
-3. **Criação de Bridge:** Facilita a configuração de redes criando uma bridge chamada `vmbr0`. Você pode optar por configurar manualmente ou usar DHCP.
-
-## Atualizações e Suporte
-
-Para obter suporte ou relatar problemas, [abra uma issue](https://github.com/tjengbudi/proxmox-debian13/issues).
-
-## Licença
-
-Este script é distribuído sob a licença [BSD 3-Clause](https://opensource.org/licenses/BSD-3-Clause).
-
-## Agradecimentos
-
-Se você identificar oportunidades de melhoria ou quiser contribuir, sinta-se à vontade para criar um pull request. Estamos abertos a colaborações para aprimorar esta ferramenta.
-
-Agradecemos por fazer parte da comunidade e por contribuir para o desenvolvimento contínuo deste script.
-
-**Divirta-se com o Proxmox!** 🚀
+**Enjoy Proxmox VE 9!** 🚀
