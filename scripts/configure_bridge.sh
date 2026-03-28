@@ -411,7 +411,7 @@ neutralize_cloud_init_network_files()
         if is_cloud_init_network_file "$file"; then
             neutralize_cloud_init_network_file "$file"
         fi
-    done < <(collect_sourced_interface_files)
+    done < <(collect_candidate_cloud_init_network_files)
 }
 
 has_active_cloud_init_network_files()
@@ -423,9 +423,17 @@ has_active_cloud_init_network_files()
         if is_cloud_init_network_file "$file"; then
             return 0
         fi
-    done < <(collect_sourced_interface_files)
+    done < <(collect_candidate_cloud_init_network_files)
 
     return 1
+}
+
+collect_candidate_cloud_init_network_files()
+{
+    {
+        collect_sourced_interface_files
+        find /etc/network/interfaces.d -maxdepth 1 -type f -name '*cloud-init*' 2>/dev/null | sort
+    } | awk '!seen[$0]++'
 }
 
 show_cloud_init_takeover_message()
