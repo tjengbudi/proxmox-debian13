@@ -269,12 +269,68 @@ remove_os-prober()
         echo -e "...${default}"
     fi
 
+    # Check if os-prober is installed before attempting removal
+    if ! dpkg -l | grep -q "^ii.*os-prober"; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${yellow}os-prober is not installed, skipping removal.${default}"
+        else
+            echo -e "${yellow}os-prober não está instalado, pulando remoção.${default}"
+        fi
+        return 0
+    fi
+
+    if [ "$LANGUAGE" == "en" ]; then
+        echo -e "${yellow}Removing os-prober package...${default}"
+    else
+        echo -e "${yellow}Removendo pacote os-prober...${default}"
+    fi
+
+    # Remove os-prober with error handling
     if command -v nala &> /dev/null; then
         # Execute with 'nala' if installed
-        nala remove -y os-prober
+        if ! nala remove -y os-prober; then
+            if [ "$LANGUAGE" == "en" ]; then
+                echo -e "${yellow}WARNING: Failed to remove os-prober. This is not critical.${default}"
+                echo -e "${yellow}You can manually remove it later with: nala remove os-prober${default}"
+            else
+                echo -e "${yellow}AVISO: Falha ao remover os-prober. Isso não é crítico.${default}"
+                echo -e "${yellow}Você pode removê-lo manualmente depois com: nala remove os-prober${default}"
+            fi
+        fi
     else
         # Execute with 'apt' if 'nala' is not installed
-        apt remove -y os-prober
+        if ! apt remove -y os-prober; then
+            if [ "$LANGUAGE" == "en" ]; then
+                echo -e "${yellow}WARNING: Failed to remove os-prober. This is not critical.${default}"
+                echo -e "${yellow}You can manually remove it later with: apt remove os-prober${default}"
+            else
+                echo -e "${yellow}AVISO: Falha ao remover os-prober. Isso não é crítico.${default}"
+                echo -e "${yellow}Você pode removê-lo manualmente depois com: apt remove os-prober${default}"
+            fi
+        fi
+    fi
+
+    # Update GRUB after removing os-prober to ensure bootloader consistency
+    if [ "$LANGUAGE" == "en" ]; then
+        echo -e "${cyan}Updating GRUB configuration after os-prober removal...${default}"
+    else
+        echo -e "${cyan}Atualizando configuração do GRUB após remoção do os-prober...${default}"
+    fi
+
+    if ! update-grub; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${red}WARNING: Failed to update GRUB after os-prober removal!${default}"
+            echo -e "${yellow}This may cause boot issues. You should run 'update-grub' manually.${default}"
+        else
+            echo -e "${red}AVISO: Falha ao atualizar GRUB após remoção do os-prober!${default}"
+            echo -e "${yellow}Isso pode causar problemas de boot. Você deve executar 'update-grub' manualmente.${default}"
+        fi
+    else
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${green}GRUB configuration updated successfully.${default}"
+        else
+            echo -e "${green}Configuração do GRUB atualizada com sucesso.${default}"
+        fi
     fi
 }
 
