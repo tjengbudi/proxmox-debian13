@@ -414,6 +414,20 @@ neutralize_cloud_init_network_files()
     done < <(collect_sourced_interface_files)
 }
 
+has_active_cloud_init_network_files()
+{
+    local file
+
+    while IFS= read -r file; do
+        [ -f "$file" ] || continue
+        if is_cloud_init_network_file "$file"; then
+            return 0
+        fi
+    done < <(collect_sourced_interface_files)
+
+    return 1
+}
+
 show_cloud_init_takeover_message()
 {
     if [ "$LANGUAGE" == "en" ]; then
@@ -686,6 +700,7 @@ install_bridge_config()
     local temp_file
     local rewrite_status
     local target_status
+    local cloud_init_active=0
 
     target_file=$(resolve_interfaces_target_file "$iface")
     target_status=$?
@@ -725,7 +740,8 @@ install_bridge_config()
 
     temp_file=$(mktemp)
 
-    if is_cloud_init_network_file "$target_file"; then
+    if is_cloud_init_network_file "$target_file" || has_active_cloud_init_network_files; then
+        cloud_init_active=1
         disable_cloud_init_network_config
         show_cloud_init_takeover_message
         target_file="/etc/network/interfaces"
@@ -752,7 +768,7 @@ install_bridge_config()
     mv "$temp_file" "$target_file"
     chmod 644 "$target_file"
 
-    if [ -f /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg ]; then
+    if [ "$cloud_init_active" -eq 1 ]; then
         neutralize_cloud_init_network_files || {
             restore_network_backups "$NETWORK_FILE_BACKUPS_DIR"
             cleanup_network_backups "$NETWORK_FILE_BACKUPS_DIR"
