@@ -30,10 +30,12 @@ apply_network_changes()
 
 show_layout_error()
 {
+    local details="${1:-}"
+
     if [ "$LANGUAGE" == "en" ]; then
-        whiptail --title "Network Configuration" --msgbox "This host uses 'source' or 'source-directory' directives in /etc/network/interfaces.\n\nAutomatic bridge rewrite is disabled for this layout because it may leave duplicated or conflicting interface definitions.\nPlease migrate the bridge configuration manually." 16 70
+        whiptail --title "Network Configuration" --msgbox "Automatic bridge rewrite could not safely determine which network file should be updated.\n\n${details}\nPlease migrate the bridge configuration manually." 16 70
     else
-        whiptail --title "Configuração de Rede" --msgbox "Este host usa diretivas 'source' ou 'source-directory' em /etc/network/interfaces.\n\nA reescrita automática da bridge foi desativada para esse layout porque pode deixar definições duplicadas ou conflitantes.\nFaça a migração manualmente." 16 70
+        whiptail --title "Configuração de Rede" --msgbox "A reescrita automática da bridge não conseguiu determinar com segurança qual arquivo de rede deve ser atualizado.\n\n${details}\nFaça a migração manualmente." 16 70
     fi
 }
 
@@ -90,17 +92,101 @@ EOF
 EOF
 }
 
+file_has_iface_definition()
+{
+    local file="$1"
+    local iface="$2"
+
+    grep -Eq "^[[:space:]]*iface[[:space:]]+${iface//./\\.}([[:space:]]+|$)" "$file"
+}
+
+collect_sourced_interface_files()
+{
+    local line
+    local path
+    local dir
+    local candidate
+
+    while IFS= read -r line; do
+        case "$line" in
+            [[:space:]]*source[[:space:]]*)
+                path=$(printf '%s\n' "$line" | awk '{print $2}')
+                for candidate in $path; do
+                    [ -f "$candidate" ] && printf '%s\n' "$candidate"
+                done
+                ;;
+            [[:space:]]*source-directory[[:space:]]*)
+                dir=$(printf '%s\n' "$line" | awk '{print $2}')
+                if [ -d "$dir" ]; then
+                    find "$dir" -maxdepth 1 -type f ! -name '.*' | sort
+                fi
+                ;;
+        esac
+    done < /etc/network/interfaces
+}
+
+resolve_interfaces_target_file()
+{
+    local iface="$1"
+    local main_file="/etc/network/interfaces"
+    local -a sourced_files=()
+    local -a iface_matches=()
+    local -a bridge_matches=()
+    local file
+
+    if file_has_iface_definition "$main_file" "$iface" || file_has_iface_definition "$main_file" "vmbr0"; then
+        printf '%s\n' "$main_file"
+        return 0
+    fi
+
+    while IFS= read -r file; do
+        [ -n "$file" ] || continue
+        sourced_files+=("$file")
+    done < <(collect_sourced_interface_files)
+
+    if [ ${#sourced_files[@]} -eq 0 ]; then
+        printf '%s\n' "$main_file"
+        return 0
+    fi
+
+    for file in "${sourced_files[@]}"; do
+        if file_has_iface_definition "$file" "$iface"; then
+            iface_matches+=("$file")
+        fi
+        if file_has_iface_definition "$file" "vmbr0"; then
+            bridge_matches+=("$file")
+        fi
+    done
+
+    if [ ${#iface_matches[@]} -eq 1 ]; then
+        printf '%s\n' "${iface_matches[0]}"
+        return 0
+    fi
+
+    if [ ${#iface_matches[@]} -gt 1 ]; then
+        return 2
+    fi
+
+    if [ ${#bridge_matches[@]} -eq 1 ]; then
+        printf '%s\n' "${bridge_matches[0]}"
+        return 0
+    fi
+
+    if [ ${#bridge_matches[@]} -gt 1 ]; then
+        return 3
+    fi
+
+    return 1
+}
+
 rewrite_interfaces_file()
 {
     local iface="$1"
     local mode="$2"
     local ip_cidr="$3"
     local gw="$4"
-    local output_file="$5"
-
-    if grep -Eq '^[[:space:]]*(source|source-directory)[[:space:]]+' /etc/network/interfaces; then
-        return 2
-    fi
+    local source_file="$5"
+    local output_file="$6"
 
     awk -v iface="$iface" -v bridge="vmbr0" '
         function is_target(name) {
@@ -152,7 +238,7 @@ rewrite_interfaces_file()
 
             print
         }
-    ' /etc/network/interfaces > "$output_file" || return 1
+    ' "$source_file" > "$output_file" || return 1
 
     render_bridge_config "$iface" "$mode" "$ip_cidr" "$gw" >> "$output_file" || return 1
 }
@@ -184,19 +270,53 @@ install_bridge_config()
     local mode="$2"
     local ip_cidr="$3"
     local gw="$4"
+    local target_file
     local temp_file
     local rewrite_status
+    local target_status
+
+    target_file=$(resolve_interfaces_target_file "$iface")
+    target_status=$?
+
+    case $target_status in
+        0)
+            ;;
+        1)
+            if [ "$LANGUAGE" == "en" ]; then
+                show_layout_error "No file defining 'iface $iface' or 'iface vmbr0' was found in /etc/network/interfaces or sourced fragments."
+            else
+                show_layout_error "Nenhum arquivo com 'iface $iface' ou 'iface vmbr0' foi encontrado em /etc/network/interfaces ou nos fragments carregados."
+            fi
+            return 1
+            ;;
+        2)
+            if [ "$LANGUAGE" == "en" ]; then
+                show_layout_error "Multiple sourced files define 'iface $iface'. The script cannot safely choose which one to rewrite."
+            else
+                show_layout_error "Muitos arquivos carregados definem 'iface $iface'. O script não consegue escolher com segurança qual deve ser reescrito."
+            fi
+            return 1
+            ;;
+        3)
+            if [ "$LANGUAGE" == "en" ]; then
+                show_layout_error "Multiple sourced files define 'iface vmbr0'. The script cannot safely choose which one to rewrite."
+            else
+                show_layout_error "Muitos arquivos carregados definem 'iface vmbr0'. O script não consegue escolher com segurança qual deve ser reescrito."
+            fi
+            return 1
+            ;;
+        *)
+            show_generated_file_error
+            return 1
+            ;;
+    esac
 
     temp_file=$(mktemp)
 
-    rewrite_interfaces_file "$iface" "$mode" "$ip_cidr" "$gw" "$temp_file"
+    rewrite_interfaces_file "$iface" "$mode" "$ip_cidr" "$gw" "$target_file" "$temp_file"
     rewrite_status=$?
 
-    if [ $rewrite_status -eq 2 ]; then
-        rm -f "$temp_file"
-        show_layout_error
-        return 1
-    elif [ $rewrite_status -ne 0 ]; then
+    if [ $rewrite_status -ne 0 ]; then
         rm -f "$temp_file"
         show_generated_file_error
         return 1
@@ -208,8 +328,12 @@ install_bridge_config()
         return 1
     fi
 
-    mv "$temp_file" /etc/network/interfaces
-    chmod 644 /etc/network/interfaces
+    NETWORK_TARGET_FILE="$target_file"
+    NETWORK_TARGET_FILE_BACKUP="$(mktemp)"
+    cp "$target_file" "$NETWORK_TARGET_FILE_BACKUP"
+
+    mv "$temp_file" "$target_file"
+    chmod 644 "$target_file"
 }
 
 # Becoming superuser // Tornando-se superusuário
@@ -336,11 +460,17 @@ configure_bridge()
     whiptail --title "Network Configuration" --msgbox "Restarting the network service to apply the changes...\n\nWARNING: This may temporarily disconnect your network.\nIf you lose connection, you can restore the backup at:\n/etc/network/interfaces.backup" 15 60
 
     if ! apply_network_changes; then
-        cp /etc/network/interfaces.backup /etc/network/interfaces
+        if [ -n "$NETWORK_TARGET_FILE_BACKUP" ] && [ -f "$NETWORK_TARGET_FILE_BACKUP" ]; then
+            cp "$NETWORK_TARGET_FILE_BACKUP" "$NETWORK_TARGET_FILE"
+        else
+            cp /etc/network/interfaces.backup /etc/network/interfaces
+        fi
         apply_network_changes >/dev/null 2>&1 || true
         whiptail --title "Network Configuration ERROR" --msgbox "ERROR: Failed to apply networking changes.\n\nThe previous /etc/network/interfaces backup has been restored.\nPlease review the configuration manually." 15 60
         exit 1
     fi
+
+    rm -f "$NETWORK_TARGET_FILE_BACKUP"
 
     if ! ip link set dev vmbr0 up; then
         whiptail --title "Network Configuration ERROR" --msgbox "WARNING: Failed to bring up vmbr0 interface!\n\nThe bridge was created but may need manual configuration.\nPlease check with: ip addr show vmbr0" 15 60
@@ -459,11 +589,17 @@ configurar_bridge()
     whiptail --title "Configuração de Rede" --msgbox "Reiniciando o serviço de rede para aplicar as alterações...\n\nAVISO: Isso pode desconectar sua rede temporariamente.\nSe perder a conexão, você pode restaurar o backup em:\n/etc/network/interfaces.backup" 15 60
 
     if ! apply_network_changes; then
-        cp /etc/network/interfaces.backup /etc/network/interfaces
+        if [ -n "$NETWORK_TARGET_FILE_BACKUP" ] && [ -f "$NETWORK_TARGET_FILE_BACKUP" ]; then
+            cp "$NETWORK_TARGET_FILE_BACKUP" "$NETWORK_TARGET_FILE"
+        else
+            cp /etc/network/interfaces.backup /etc/network/interfaces
+        fi
         apply_network_changes >/dev/null 2>&1 || true
         whiptail --title "ERRO na Configuração de Rede" --msgbox "ERRO: Falha ao aplicar alterações de rede.\n\nO backup anterior de /etc/network/interfaces foi restaurado.\nRevise a configuração manualmente." 15 60
         exit 1
     fi
+
+    rm -f "$NETWORK_TARGET_FILE_BACKUP"
 
     if ! ip link set dev vmbr0 up; then
         whiptail --title "ERRO na Configuração de Rede" --msgbox "AVISO: Falha ao ativar interface vmbr0!\n\nA bridge foi criada mas pode precisar de configuração manual.\nVerifique com: ip addr show vmbr0" 15 60
