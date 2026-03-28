@@ -157,6 +157,54 @@ collect_sourced_interface_files()
     done < /etc/network/interfaces
 }
 
+collect_all_network_files()
+{
+    printf '%s\n' /etc/network/interfaces
+    collect_sourced_interface_files
+}
+
+backup_network_files()
+{
+    local backup_dir
+    local file
+    local backup_file
+
+    backup_dir=$(mktemp -d)
+    : > "$backup_dir/manifest"
+
+    while IFS= read -r file; do
+        [ -f "$file" ] || continue
+        backup_file="$backup_dir/$(basename "$file").$(cksum < "$file" | awk '{print $1}')"
+        cp "$file" "$backup_file"
+        printf '%s|%s\n' "$file" "$backup_file" >> "$backup_dir/manifest"
+    done < <(collect_all_network_files)
+
+    printf '%s\n' "$backup_dir"
+}
+
+restore_network_backups()
+{
+    local backup_dir="$1"
+    local file
+    local backup_file
+
+    [ -n "$backup_dir" ] || return 0
+    [ -f "$backup_dir/manifest" ] || return 0
+
+    while IFS='|' read -r file backup_file; do
+        [ -f "$backup_file" ] || continue
+        cp "$backup_file" "$file"
+    done < "$backup_dir/manifest"
+}
+
+cleanup_network_backups()
+{
+    local backup_dir="$1"
+
+    [ -n "$backup_dir" ] || return 0
+    rm -rf "$backup_dir"
+}
+
 resolve_interfaces_target_file()
 {
     local iface="$1"
@@ -209,6 +257,127 @@ resolve_interfaces_target_file()
     fi
 
     return 1
+}
+
+strip_iface_from_file()
+{
+    local file="$1"
+    local iface="$2"
+    local temp_file
+
+    temp_file=$(mktemp)
+
+    awk -v iface="$iface" '
+        function is_target(name) {
+            return name == iface
+        }
+
+        BEGIN {
+            skip_stanza = 0
+        }
+
+        {
+            line = $0
+
+            if (skip_stanza) {
+                if (line ~ /^[[:space:]]*$/) {
+                    skip_stanza = 0
+                    next
+                }
+
+                if (line ~ /^[^[:space:]#]/) {
+                    skip_stanza = 0
+                } else {
+                    next
+                }
+            }
+
+            if (line ~ /^[[:space:]]*iface[[:space:]]+/ && is_target($2)) {
+                skip_stanza = 1
+                next
+            }
+
+            if (line ~ /^[[:space:]]*(auto|allow-[^[:space:]]+)[[:space:]]+/) {
+                keyword = $1
+                kept = ""
+
+                for (i = 2; i <= NF; i++) {
+                    if (!is_target($i)) {
+                        kept = kept (kept ? OFS : "") $i
+                    }
+                }
+
+                if (kept != "") {
+                    print keyword, kept
+                }
+                next
+            }
+
+            print
+        }
+    ' "$file" > "$temp_file" || {
+        rm -f "$temp_file"
+        return 1
+    }
+
+    mv "$temp_file" "$file"
+    chmod 644 "$file"
+}
+
+ensure_main_loopback()
+{
+    local main_file="/etc/network/interfaces"
+    local temp_file
+
+    if file_has_iface_definition "$main_file" "lo"; then
+        return 0
+    fi
+
+    temp_file=$(mktemp)
+    cat <<'EOF' > "$temp_file"
+auto lo
+iface lo inet loopback
+
+EOF
+    cat "$main_file" >> "$temp_file"
+    mv "$temp_file" "$main_file"
+    chmod 644 "$main_file"
+}
+
+normalize_loopback_definitions()
+{
+    local main_file="/etc/network/interfaces"
+    local -a all_files=()
+    local -a loopback_files=()
+    local file
+    local keeper=""
+
+    while IFS= read -r file; do
+        [ -f "$file" ] || continue
+        all_files+=("$file")
+        if file_has_iface_definition "$file" "lo"; then
+            loopback_files+=("$file")
+        fi
+    done < <(collect_all_network_files)
+
+    if [ ${#loopback_files[@]} -eq 0 ]; then
+        ensure_main_loopback
+        keeper="$main_file"
+    elif file_has_iface_definition "$main_file" "lo"; then
+        keeper="$main_file"
+    else
+        keeper="${loopback_files[0]}"
+    fi
+
+    for file in "${all_files[@]}"; do
+        if [ "$file" != "$keeper" ] && file_has_iface_definition "$file" "lo"; then
+            strip_iface_from_file "$file" "lo" || return 1
+        fi
+    done
+
+    if ! file_has_iface_definition "$keeper" "lo"; then
+        return 1
+    fi
 }
 
 rewrite_interfaces_file()
@@ -365,12 +534,19 @@ install_bridge_config()
         return 1
     fi
 
+    NETWORK_FILE_BACKUPS_DIR=$(backup_network_files)
     NETWORK_TARGET_FILE="$target_file"
-    NETWORK_TARGET_FILE_BACKUP="$(mktemp)"
-    cp "$target_file" "$NETWORK_TARGET_FILE_BACKUP"
 
     mv "$temp_file" "$target_file"
     chmod 644 "$target_file"
+
+    if ! normalize_loopback_definitions; then
+        restore_network_backups "$NETWORK_FILE_BACKUPS_DIR"
+        cleanup_network_backups "$NETWORK_FILE_BACKUPS_DIR"
+        NETWORK_FILE_BACKUPS_DIR=""
+        show_generated_file_error
+        return 1
+    fi
 }
 
 # Becoming superuser // Tornando-se superusuário
@@ -494,7 +670,8 @@ configure_bridge()
     done
 
     if ! should_apply_network_now; then
-        rm -f "$NETWORK_TARGET_FILE_BACKUP"
+        cleanup_network_backups "$NETWORK_FILE_BACKUPS_DIR"
+        NETWORK_FILE_BACKUPS_DIR=""
         show_deferred_apply_message
         return 0
     fi
@@ -502,8 +679,8 @@ configure_bridge()
     whiptail --title "Network Configuration" --msgbox "Restarting the network service to apply the changes...\n\nWARNING: This may temporarily disconnect your network.\nIf you lose connection, you can restore the backup at:\n/etc/network/interfaces.backup" 15 60
 
     if ! apply_network_changes; then
-        if [ -n "$NETWORK_TARGET_FILE_BACKUP" ] && [ -f "$NETWORK_TARGET_FILE_BACKUP" ]; then
-            cp "$NETWORK_TARGET_FILE_BACKUP" "$NETWORK_TARGET_FILE"
+        if [ -n "$NETWORK_FILE_BACKUPS_DIR" ]; then
+            restore_network_backups "$NETWORK_FILE_BACKUPS_DIR"
         else
             cp /etc/network/interfaces.backup /etc/network/interfaces
         fi
@@ -512,7 +689,8 @@ configure_bridge()
         exit 1
     fi
 
-    rm -f "$NETWORK_TARGET_FILE_BACKUP"
+    cleanup_network_backups "$NETWORK_FILE_BACKUPS_DIR"
+    NETWORK_FILE_BACKUPS_DIR=""
 
     if ! ip link set dev vmbr0 up; then
         whiptail --title "Network Configuration ERROR" --msgbox "WARNING: Failed to bring up vmbr0 interface!\n\nThe bridge was created but may need manual configuration.\nPlease check with: ip addr show vmbr0" 15 60
@@ -628,7 +806,8 @@ configurar_bridge()
     done
 
     if ! should_apply_network_now; then
-        rm -f "$NETWORK_TARGET_FILE_BACKUP"
+        cleanup_network_backups "$NETWORK_FILE_BACKUPS_DIR"
+        NETWORK_FILE_BACKUPS_DIR=""
         show_deferred_apply_message
         return 0
     fi
@@ -636,8 +815,8 @@ configurar_bridge()
     whiptail --title "Configuração de Rede" --msgbox "Reiniciando o serviço de rede para aplicar as alterações...\n\nAVISO: Isso pode desconectar sua rede temporariamente.\nSe perder a conexão, você pode restaurar o backup em:\n/etc/network/interfaces.backup" 15 60
 
     if ! apply_network_changes; then
-        if [ -n "$NETWORK_TARGET_FILE_BACKUP" ] && [ -f "$NETWORK_TARGET_FILE_BACKUP" ]; then
-            cp "$NETWORK_TARGET_FILE_BACKUP" "$NETWORK_TARGET_FILE"
+        if [ -n "$NETWORK_FILE_BACKUPS_DIR" ]; then
+            restore_network_backups "$NETWORK_FILE_BACKUPS_DIR"
         else
             cp /etc/network/interfaces.backup /etc/network/interfaces
         fi
@@ -646,7 +825,8 @@ configurar_bridge()
         exit 1
     fi
 
-    rm -f "$NETWORK_TARGET_FILE_BACKUP"
+    cleanup_network_backups "$NETWORK_FILE_BACKUPS_DIR"
+    NETWORK_FILE_BACKUPS_DIR=""
 
     if ! ip link set dev vmbr0 up; then
         whiptail --title "ERRO na Configuração de Rede" --msgbox "AVISO: Falha ao ativar interface vmbr0!\n\nA bridge foi criada mas pode precisar de configuração manual.\nVerifique com: ip addr show vmbr0" 15 60
