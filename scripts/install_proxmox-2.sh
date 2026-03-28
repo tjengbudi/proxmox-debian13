@@ -30,13 +30,14 @@ remove_start_script()
         PROFILE_FILE="$user_home/.bashrc"
         
         # Remove the script line from the profile file
-        sed -i '/# Execute script after login/,/# End of script 2/d' "$PROFILE_FILE"
+        sed -i '/^# Execute script after login$/,/^# End of script 2$/d' "$PROFILE_FILE"
         echo -e "${blue}Removed profile configuration for user:${cyan} $(basename "$user_home").${normal}"
 
         # Remove the lines added to /root/.bashrc
-        sed -i '/# Execute script after login/,/\/proxmox-debian13\/scripts\/install_proxmox-2.sh/d' /root/.bashrc
-        echo -e "${blue}Removed automatic script configuration in /root/.bashrc.${normal}"
     done
+
+    sed -i '/^# Execute script after login$/,/^# End of script 2$/d' /root/.bashrc
+    echo -e "${blue}Removed automatic script configuration in /root/.bashrc.${normal}"
 }
 
 # Start bridge configuration after reboot // Iniciar configuração da bridge após o reboot
@@ -50,6 +51,7 @@ configure_bridge()
             # Add the script execution line at the end of the file
             echo -e "\n# Run script after login" >> "$PROFILE_FILE"
             echo "/proxmox-debian13/scripts/configure_bridge.sh" >> "$PROFILE_FILE"
+            echo "# End of bridge script" >> "$PROFILE_FILE"
 
             echo "Automatic configuration completed for user: $(basename "$user_home")."
         fi
@@ -58,8 +60,42 @@ configure_bridge()
     # Add the following lines at the end of the /root/.bashrc file
     echo -e "\n# Run script after login" >> /root/.bashrc
     echo "/proxmox-debian13/scripts/configure_bridge.sh" >> /root/.bashrc
+    echo "# End of bridge script" >> /root/.bashrc
 
     echo "Automatic configuration completed for the root user."
+}
+
+refresh_bootloader()
+{
+    if command -v proxmox-boot-tool &> /dev/null && [ -s /etc/kernel/proxmox-boot-uuids ]; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${cyan}Refreshing boot entries with proxmox-boot-tool...${default}"
+        else
+            echo -e "${cyan}Atualizando entradas de boot com proxmox-boot-tool...${default}"
+        fi
+        proxmox-boot-tool refresh
+        return $?
+    fi
+
+    if command -v update-grub &> /dev/null; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${cyan}Updating GRUB bootloader...${default}"
+        else
+            echo -e "${cyan}Atualizando o carregador de boot GRUB...${default}"
+        fi
+        update-grub
+        return $?
+    fi
+
+    if [ "$LANGUAGE" == "en" ]; then
+        echo -e "${red}CRITICAL ERROR: No supported bootloader refresh command was found.${default}"
+        echo -e "${red}Expected either 'proxmox-boot-tool' or 'update-grub'.${default}"
+    else
+        echo -e "${red}ERRO CRÍTICO: Nenhum comando suportado para atualizar o bootloader foi encontrado.${default}"
+        echo -e "${red}Era esperado encontrar 'proxmox-boot-tool' ou 'update-grub'.${default}"
+    fi
+
+    return 1
 }
 
 
@@ -239,21 +275,15 @@ remove_kernel()
         fi
     fi
 
-    # Update grub
-    if [ "$LANGUAGE" == "en" ]; then
-        echo -e "${cyan}Updating GRUB bootloader...${default}"
-    else
-        echo -e "${cyan}Atualizando o carregador de boot GRUB...${default}"
-    fi
-
-    if ! update-grub; then
+    if ! refresh_bootloader; then
         if [ "$LANGUAGE" == "en" ]; then
-            echo -e "${red}WARNING: Failed to update GRUB!${default}"
-            echo -e "${yellow}You may need to run 'update-grub' manually before rebooting.${default}"
+            echo -e "${red}CRITICAL ERROR: Failed to refresh the bootloader after kernel removal!${default}"
+            echo -e "${red}The system should not reboot until the bootloader is updated successfully.${default}"
         else
-            echo -e "${red}AVISO: Falha ao atualizar GRUB!${default}"
-            echo -e "${yellow}Você pode precisar executar 'update-grub' manualmente antes de reiniciar.${default}"
+            echo -e "${red}ERRO CRÍTICO: Falha ao atualizar o bootloader após remover o kernel antigo!${default}"
+            echo -e "${red}O sistema não deve reiniciar até o bootloader ser atualizado com sucesso.${default}"
         fi
+        exit 1
     fi
 }
 
@@ -310,26 +340,20 @@ remove_os-prober()
         fi
     fi
 
-    # Update GRUB after removing os-prober to ensure bootloader consistency
-    if [ "$LANGUAGE" == "en" ]; then
-        echo -e "${cyan}Updating GRUB configuration after os-prober removal...${default}"
-    else
-        echo -e "${cyan}Atualizando configuração do GRUB após remoção do os-prober...${default}"
-    fi
-
-    if ! update-grub; then
+    if ! refresh_bootloader; then
         if [ "$LANGUAGE" == "en" ]; then
-            echo -e "${red}WARNING: Failed to update GRUB after os-prober removal!${default}"
-            echo -e "${yellow}This may cause boot issues. You should run 'update-grub' manually.${default}"
+            echo -e "${red}CRITICAL ERROR: Failed to refresh the bootloader after removing os-prober!${default}"
+            echo -e "${red}The system should not reboot until the bootloader is updated successfully.${default}"
         else
-            echo -e "${red}AVISO: Falha ao atualizar GRUB após remoção do os-prober!${default}"
-            echo -e "${yellow}Isso pode causar problemas de boot. Você deve executar 'update-grub' manualmente.${default}"
+            echo -e "${red}ERRO CRÍTICO: Falha ao atualizar o bootloader após remover o os-prober!${default}"
+            echo -e "${red}O sistema não deve reiniciar até o bootloader ser atualizado com sucesso.${default}"
         fi
+        exit 1
     else
         if [ "$LANGUAGE" == "en" ]; then
-            echo -e "${green}GRUB configuration updated successfully.${default}"
+            echo -e "${green}Bootloader configuration updated successfully.${default}"
         else
-            echo -e "${green}Configuração do GRUB atualizada com sucesso.${default}"
+            echo -e "${green}Configuração do bootloader atualizada com sucesso.${default}"
         fi
     fi
 }

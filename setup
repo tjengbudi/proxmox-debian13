@@ -6,7 +6,8 @@
 cd /proxmox-debian13 && clear
 
 # Load configs files // Carregar os arquivos de configuração
-source ./configs/*
+source ./configs/colors.conf
+[ -f ./configs/language.conf ] && source ./configs/language.conf
 
 # Function to display the language choice menu // Função para exibir o menu de escolha de linguagem
 show_language_menu() 
@@ -158,8 +159,11 @@ install_sudo()
                 echo -e "${blue}User ${cyan}$selected_user${blue} already has sudo permissions. No action needed.${default}"
             else
                 clear
-                sed -i "/^sudo/s/$/$selected_user/" /etc/group
-                echo -e "${green}Sudo permissions updated for user:${cyan} $selected_user${default}."
+                if usermod -aG sudo "$selected_user"; then
+                    echo -e "${green}Sudo permissions updated for user:${cyan} $selected_user${default}."
+                else
+                    echo -e "${red}Failed to update sudo permissions for user:${cyan} $selected_user${default}."
+                fi
             fi
             break
         else
@@ -199,8 +203,11 @@ instalar_sudo()
                 echo -e "${blue}O usuário ${cyan}$selected_user${blue} já possui permissões de sudo. Nenhuma ação necessária.${default}"
             else
                 clear
-                sed -i "/^sudo/s/$/$selected_user/" /etc/group
-                echo -e "${green}Permissões de sudo atualizadas para o usuário:${cyan} $selected_user${default}."
+                if usermod -aG sudo "$selected_user"; then
+                    echo -e "${green}Permissões de sudo atualizadas para o usuário:${cyan} $selected_user${default}."
+                else
+                    echo -e "${red}Falha ao atualizar permissões de sudo para o usuário:${cyan} $selected_user${default}."
+                fi
             fi
             break
         else

@@ -25,6 +25,11 @@ super_user()
 
 add_welcome()
 {
+    for target_file in /root/.bashrc /home/*/.bashrc; do
+        [ -f "$target_file" ] || continue
+        sed -i '/^# Execute script after login$/,/^# End of custom welcome$/d' "$target_file"
+    done
+
     # Add script execution to user profiles
     for user_home in /home/*; do
         PROFILE_FILE="$user_home/.bashrc"
@@ -35,19 +40,20 @@ add_welcome()
             echo "" >> "$PROFILE_FILE"
             echo "# Execute script after login" >> "$PROFILE_FILE"
             echo "/proxmox-debian13/scripts/custom_welcome.sh" >> "$PROFILE_FILE"
+            echo "# End of custom welcome" >> "$PROFILE_FILE"
             echo "" >> "$PROFILE_FILE"
 
             echo "Automatic configuration completed for user: $(basename "$user_home")."
         fi
-
-        # Add the following lines to the end of the /root/.bashrc file
-        echo "" >> /root/.bashrc
-        echo "# Execute script after login" >> /root/.bashrc
-        echo "/proxmox-debian13/scripts/custom_welcome.sh" >> /root/.bashrc
-        echo "" >> /root/.bashrc
-
-        echo "Automatic configuration completed for the root user."
     done
+
+    echo "" >> /root/.bashrc
+    echo "# Execute script after login" >> /root/.bashrc
+    echo "/proxmox-debian13/scripts/custom_welcome.sh" >> /root/.bashrc
+    echo "# End of custom welcome" >> /root/.bashrc
+    echo "" >> /root/.bashrc
+
+    echo "Automatic configuration completed for the root user."
 }
 
 ask_reboot()
@@ -73,7 +79,7 @@ perguntar_reboot()
         systemctl reboot
     else
         # Message after choosing not to restart
-        exit 1
+        exit 0
     fi
 }
 
@@ -85,14 +91,14 @@ main()
             add_welcome
             ask_reboot
         else
-            exit 1
+            exit 0
         fi
     else
         if whiptail --yesno "(Opcional) Deseja adicionar tela de bem-vindo customizada?" 10 50 --yes-button "Sim" --no-button "Não"; then
             add_welcome
             perguntar_reboot
         else
-            exit 1
+            exit 0
         fi
     fi
 }

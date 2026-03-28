@@ -9,6 +9,58 @@ cd /proxmox-debian13
 source ./configs/colors.conf
 source ./configs/language.conf
 
+get_candidate_interfaces()
+{
+    ip -o -4 addr show up scope global | awk '{print $2, $4}' | while read -r iface cidr; do
+        case "$iface" in
+            lo|vmbr*|docker*|veth*|virbr*|tap*|fw*|wg*|zt*|tailscale*)
+                continue
+                ;;
+        esac
+
+        if ip link show dev "$iface" >/dev/null 2>&1; then
+            echo "$iface $cidr"
+        fi
+    done
+}
+
+upsert_hosts_entry()
+{
+    local host_ip="$1"
+    local short_host="$2"
+    local fqdn="${short_host}.proxmox.com"
+    local tmp_hosts
+
+    tmp_hosts=$(mktemp)
+
+    awk -v host="$short_host" -v fqdn="$fqdn" '
+        $1 == "127.0.1.1" {
+            keep = ""
+            for (i = 2; i <= NF; i++) {
+                if ($i != host && $i != fqdn) {
+                    keep = keep (keep ? OFS : "") $i
+                }
+            }
+            if (keep != "") {
+                print $1, keep
+            }
+            next
+        }
+        {
+            for (i = 2; i <= NF; i++) {
+                if ($i == host || $i == fqdn) {
+                    next
+                }
+            }
+            print
+        }
+    ' /etc/hosts > "$tmp_hosts"
+
+    printf "%s       %s %s\n" "$host_ip" "$fqdn" "$short_host" >> "$tmp_hosts"
+    cat "$tmp_hosts" > /etc/hosts
+    rm -f "$tmp_hosts"
+}
+
 install_proxmox-1() 
 {
     echo -e "${cyan}Setting up Proxmox - 1st part."
@@ -52,7 +104,12 @@ install_proxmox-1()
         if [ -n "$interface" ]; then
             interfaces["$interface"]="$ip_address"
         fi
-    done < <(ip addr show | awk '/inet / {split($2, a, "/"); print $NF, a[1]}')
+    done < <(get_candidate_interfaces | awk '{split($2, a, "/"); print $1, a[1]}')
+
+    if [ ${#interfaces[@]} -eq 0 ]; then
+        echo -e "${red}CRITICAL ERROR: No usable network interface with a global IPv4 address was detected.${default}"
+        exit 1
+    fi
 
     # Main loop
     while true; do
@@ -102,14 +159,9 @@ install_proxmox-1()
 
     echo -e "${blue}Adding or updating an entry in /etc/hosts for your IP address...${default}"
 
-    if grep -qE "$ip_address\s+$current_hostname\.proxmox\.com\s+$current_hostname" /etc/hosts; then
-        sed -i -E "s/($ip_address\s+$current_hostname\.proxmox\.com\s+$current_hostname).*/$ip_address       $current_hostname.proxmox.com $current_hostname/" /etc/hosts
-        echo -e "${blue}Entry for ${cyan}'$current_hostname'${blue} has been updated in the ${cyan}/etc/hosts${blue} file.${default}"
-    else 
-        echo "$ip_address       $current_hostname.proxmox.com $current_hostname" | tee -a /etc/hosts > /dev/null
-        echo -e "${green}Entry successfully added to the ${cyan}/etc/hosts${green} file:${normal}"
-        cat /etc/hosts | grep "$current_hostname"
-    fi
+    upsert_hosts_entry "$ip_address" "$current_hostname"
+    echo -e "${green}Host entry synchronized in ${cyan}/etc/hosts${green}:${normal}"
+    grep -E "[[:space:]]${current_hostname}(\\.proxmox\\.com)?([[:space:]]|\$)" /etc/hosts
 
     echo -e "${cyan}...${default}"
 }
@@ -157,7 +209,12 @@ instalar_proxmox-1()
         if [ -n "$interface" ]; then
             interfaces["$interface"]="$ip_address"
         fi
-    done < <(ip addr show | awk '/inet / {split($2, a, "/"); print $NF, a[1]}')
+    done < <(get_candidate_interfaces | awk '{split($2, a, "/"); print $1, a[1]}')
+
+    if [ ${#interfaces[@]} -eq 0 ]; then
+        echo -e "${red}ERRO CRÍTICO: Nenhuma interface de rede utilizável com IPv4 global foi detectada.${default}"
+        exit 1
+    fi
 
     # Loop principal
     while true; do
@@ -207,14 +264,9 @@ instalar_proxmox-1()
 
     echo -e "${blue}Adicionando ou atualizando uma entrada em /etc/hosts para o seu endereço IP...${default}"
 
-    if grep -qE "$ip_address\s+$current_hostname\.proxmox\.com\s+$current_hostname" /etc/hosts; then
-        sed -i -E "s/($ip_address\s+$current_hostname\.proxmox\.com\s+$current_hostname).*/$ip_address       $current_hostname.proxmox.com $current_hostname/" /etc/hosts
-        echo -e "${blue}Entrada para ${cyan}'$current_hostname'${blue} foi atualizada no arquivo ${cyan}/etc/hosts.${default}"
-    else 
-        echo "$ip_address       $current_hostname.proxmox.com $current_hostname" | tee -a /etc/hosts > /dev/null
-        echo -e "${green}Entrada adicionada com sucesso ao arquivo ${cyan}/etc/hosts:${normal}"
-        cat /etc/hosts | grep "$current_hostname"
-    fi
+    upsert_hosts_entry "$ip_address" "$current_hostname"
+    echo -e "${green}Entrada do host sincronizada em ${cyan}/etc/hosts${green}:${normal}"
+    grep -E "[[:space:]]${current_hostname}(\\.proxmox\\.com)?([[:space:]]|\$)" /etc/hosts
 
     echo -e "${cyan}...${default}"
 }
@@ -231,7 +283,14 @@ install_proxmox-2()
         echo -e "...${default}"
     fi
 
-    echo "deb [arch=amd64] http://download.proxmox.com/debian/pve trixie pve-no-subscription" > /etc/apt/sources.list.d/pve-install-repo.list
+    cat > /etc/apt/sources.list.d/pve-install-repo.sources <<'EOF'
+Types: deb
+URIs: http://download.proxmox.com/debian/pve
+Suites: trixie
+Components: pve-no-subscription
+Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+EOF
+    rm -f /etc/apt/sources.list.d/pve-install-repo.list
 
     # Download GPG key with error handling
     if [ "$LANGUAGE" == "en" ]; then
@@ -240,7 +299,8 @@ install_proxmox-2()
         echo -e "${cyan}Baixando chave GPG do repositório Proxmox...${default}"
     fi
 
-    if ! wget -q https://enterprise.proxmox.com/debian/proxmox-release-trixie.gpg -O /etc/apt/trusted.gpg.d/proxmox-release-trixie.gpg; then
+    install -d -m 0755 /usr/share/keyrings
+    if ! wget -q https://enterprise.proxmox.com/debian/proxmox-archive-keyring-trixie.gpg -O /usr/share/keyrings/proxmox-archive-keyring.gpg; then
         if [ "$LANGUAGE" == "en" ]; then
             echo -e "${red}CRITICAL ERROR: Failed to download Proxmox GPG key!${default}"
             echo -e "${red}Please check your internet connection and try again.${default}"
@@ -253,10 +313,8 @@ install_proxmox-2()
 
     echo -e "${yellow}Checking Key...${default}"
 
-    # Calculate the hash of the key
-    key_hash=$(sha512sum /etc/apt/trusted.gpg.d/proxmox-release-trixie.gpg | cut -d ' ' -f1)
+    key_hash=$(sha256sum /usr/share/keyrings/proxmox-archive-keyring.gpg | cut -d ' ' -f1)
 
-    # Check if the key is empty
     if [ -z "$key_hash" ]; then
         if [ "$LANGUAGE" == "en" ]; then
             echo -e "${red}CRITICAL ERROR: The GPG key is empty or invalid!${default}"
@@ -264,6 +322,15 @@ install_proxmox-2()
         else
             echo -e "${red}ERRO CRÍTICO: A chave GPG está vazia ou inválida!${default}"
             echo -e "${red}A instalação do Proxmox não pode continuar. Abortando...${default}"
+        fi
+        exit 1
+    elif [ "$key_hash" != "136673be77aba35dcce385b28737689ad64fd785a797e57897589aed08db6e45" ]; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo -e "${red}CRITICAL ERROR: Proxmox GPG key checksum mismatch!${default}"
+            echo -e "${red}Expected sha256: 136673be77aba35dcce385b28737689ad64fd785a797e57897589aed08db6e45${default}"
+        else
+            echo -e "${red}ERRO CRÍTICO: Checksum da chave GPG do Proxmox não confere!${default}"
+            echo -e "${red}sha256 esperado: 136673be77aba35dcce385b28737689ad64fd785a797e57897589aed08db6e45${default}"
         fi
         exit 1
     else
@@ -410,6 +477,7 @@ reboot_setup()
             echo "" >> "$PROFILE_FILE"
             echo "# Execute script after login" >> "$PROFILE_FILE"
             echo "/proxmox-debian13/scripts/install_proxmox-2.sh" >> "$PROFILE_FILE"
+            echo "# End of script 2" >> "$PROFILE_FILE"
             echo "" >> "$PROFILE_FILE"
 
             echo "Automatic configuration completed for user: $(basename "$user_home")."
@@ -420,6 +488,7 @@ reboot_setup()
     echo "" >> /root/.bashrc
     echo "# Execute script after login" >> /root/.bashrc
     echo "/proxmox-debian13/scripts/install_proxmox-2.sh" >> /root/.bashrc
+    echo "# End of script 2" >> /root/.bashrc
     echo "" >> /root/.bashrc
 
     echo "Automatic configuration completed for the root user."
