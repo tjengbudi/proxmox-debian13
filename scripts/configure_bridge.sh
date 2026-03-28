@@ -76,12 +76,27 @@ configure_bridge()
                 echo "IP_ADDRESS=$IP_ADDRESS" >> "$config_file"
                 echo "GATEWAY=$GATEWAY" >> "$config_file"
 
-                # Comment out the physical interface configurations in the configuration file
-                sed -i "/iface $INTERFACE inet static/,/iface/ s/^/#/" /etc/network/interfaces
-                sed -i "/iface $INTERFACE inet dhcp/,/iface/ s/^/#/" /etc/network/interfaces
+                # Remove or comment out old physical interface configuration more safely
+                # First, create a temporary file with the new configuration
+                temp_file=$(mktemp)
 
-                # Create the vmbr0 bridge with the new information
-                cat <<EOF >> /etc/network/interfaces
+                # Copy everything except the physical interface configuration
+                awk -v iface="$INTERFACE" '
+                    /^[[:space:]]*auto[[:space:]]+/ && $2 == iface { in_iface=1; next }
+                    /^[[:space:]]*iface[[:space:]]+/ && $2 == iface { in_iface=1; next }
+                    /^[[:space:]]*iface[[:space:]]+/ && $2 != iface { in_iface=0 }
+                    /^[[:space:]]*auto[[:space:]]+/ && $2 != iface { in_iface=0 }
+                    !in_iface || /^[[:space:]]*$/ { if (!in_iface) print }
+                    /^[[:space:]]*$/ { in_iface=0; print }
+                ' /etc/network/interfaces > "$temp_file"
+
+                # Add the physical interface in manual mode and the bridge configuration
+                cat <<EOF >> "$temp_file"
+
+# Physical interface for Proxmox bridge
+auto $INTERFACE
+iface $INTERFACE inet manual
+
 # Proxmox Bridge
 auto vmbr0
 iface vmbr0 inet static
@@ -92,6 +107,10 @@ iface vmbr0 inet static
     bridge_fd 0
 EOF
 
+                # Replace the original file with the new configuration
+                mv "$temp_file" /etc/network/interfaces
+                chmod 644 /etc/network/interfaces
+
                 whiptail --title "Network Configuration" --msgbox "The vmbr0 bridge was created successfully!" 10 60
                 break
                 ;;
@@ -99,12 +118,26 @@ EOF
             "2")
                 # DHCP configuration
 
-                # Comment out the physical interface configurations in the configuration file
-                sed -i "/iface $INTERFACE inet static/,/iface/ s/^/#/" /etc/network/interfaces
-                sed -i "/iface $INTERFACE inet dhcp/,/iface/ s/^/#/" /etc/network/interfaces
+                # Remove or comment out old physical interface configuration more safely
+                temp_file=$(mktemp)
 
-                # Create the vmbr0 bridge with DHCP
-                cat <<EOF >> /etc/network/interfaces
+                # Copy everything except the physical interface configuration
+                awk -v iface="$INTERFACE" '
+                    /^[[:space:]]*auto[[:space:]]+/ && $2 == iface { in_iface=1; next }
+                    /^[[:space:]]*iface[[:space:]]+/ && $2 == iface { in_iface=1; next }
+                    /^[[:space:]]*iface[[:space:]]+/ && $2 != iface { in_iface=0 }
+                    /^[[:space:]]*auto[[:space:]]+/ && $2 != iface { in_iface=0 }
+                    !in_iface || /^[[:space:]]*$/ { if (!in_iface) print }
+                    /^[[:space:]]*$/ { in_iface=0; print }
+                ' /etc/network/interfaces > "$temp_file"
+
+                # Add the physical interface in manual mode and the bridge configuration
+                cat <<EOF >> "$temp_file"
+
+# Physical interface for Proxmox bridge
+auto $INTERFACE
+iface $INTERFACE inet manual
+
 # Proxmox Bridge
 auto vmbr0
 iface vmbr0 inet dhcp
@@ -112,6 +145,10 @@ iface vmbr0 inet dhcp
     bridge_stp off
     bridge_fd 0
 EOF
+
+                # Replace the original file with the new configuration
+                mv "$temp_file" /etc/network/interfaces
+                chmod 644 /etc/network/interfaces
 
                 whiptail --title "Network Configuration" --msgbox "The vmbr0 bridge was configured with DHCP." 10 60
                 break
@@ -196,12 +233,26 @@ configurar_bridge()
                 echo "IP_ADDRESS=$IP_ADDRESS" >> "$config_file"
                 echo "GATEWAY=$GATEWAY" >> "$config_file"
 
-                # Comentar as configurações da interface física no arquivo de configuração
-                sed -i "/iface $INTERFACE inet static/,/iface/ s/^/#/" /etc/network/interfaces
-                sed -i "/iface $INTERFACE inet dhcp/,/iface/ s/^/#/" /etc/network/interfaces
+                # Remove or comment out old physical interface configuration more safely
+                temp_file=$(mktemp)
 
-                # Criar a bridge vmbr0 com as novas informações
-cat <<EOF >> /etc/network/interfaces
+                # Copy everything except the physical interface configuration
+                awk -v iface="$INTERFACE" '
+                    /^[[:space:]]*auto[[:space:]]+/ && $2 == iface { in_iface=1; next }
+                    /^[[:space:]]*iface[[:space:]]+/ && $2 == iface { in_iface=1; next }
+                    /^[[:space:]]*iface[[:space:]]+/ && $2 != iface { in_iface=0 }
+                    /^[[:space:]]*auto[[:space:]]+/ && $2 != iface { in_iface=0 }
+                    !in_iface || /^[[:space:]]*$/ { if (!in_iface) print }
+                    /^[[:space:]]*$/ { in_iface=0; print }
+                ' /etc/network/interfaces > "$temp_file"
+
+                # Add the physical interface in manual mode and the bridge configuration
+                cat <<EOF >> "$temp_file"
+
+# Physical interface for Proxmox bridge
+auto $INTERFACE
+iface $INTERFACE inet manual
+
 # Bridge Proxmox
 auto vmbr0
 iface vmbr0 inet static
@@ -212,6 +263,10 @@ iface vmbr0 inet static
     bridge_fd 0
 EOF
 
+                # Replace the original file with the new configuration
+                mv "$temp_file" /etc/network/interfaces
+                chmod 644 /etc/network/interfaces
+
                 whiptail --title "Configuração de Rede" --msgbox "A bridge vmbr0 foi criada com sucesso!" 10 60
                 break
                 ;;
@@ -219,12 +274,26 @@ EOF
             "2")
                 # Configuração para DHCP
 
-                # Comentar as configurações da interface física no arquivo de configuração
-                sed -i "/iface $INTERFACE inet static/,/iface/ s/^/#/" /etc/network/interfaces
-                sed -i "/iface $INTERFACE inet dhcp/,/iface/ s/^/#/" /etc/network/interfaces
+                # Remove or comment out old physical interface configuration more safely
+                temp_file=$(mktemp)
 
-                # Criar a bridge vmbr0 com as novas informações
-                cat <<EOF >> /etc/network/interfaces
+                # Copy everything except the physical interface configuration
+                awk -v iface="$INTERFACE" '
+                    /^[[:space:]]*auto[[:space:]]+/ && $2 == iface { in_iface=1; next }
+                    /^[[:space:]]*iface[[:space:]]+/ && $2 == iface { in_iface=1; next }
+                    /^[[:space:]]*iface[[:space:]]+/ && $2 != iface { in_iface=0 }
+                    /^[[:space:]]*auto[[:space:]]+/ && $2 != iface { in_iface=0 }
+                    !in_iface || /^[[:space:]]*$/ { if (!in_iface) print }
+                    /^[[:space:]]*$/ { in_iface=0; print }
+                ' /etc/network/interfaces > "$temp_file"
+
+                # Add the physical interface in manual mode and the bridge configuration
+                cat <<EOF >> "$temp_file"
+
+# Physical interface for Proxmox bridge
+auto $INTERFACE
+iface $INTERFACE inet manual
+
 # Bridge Proxmox
 auto vmbr0
 iface vmbr0 inet dhcp
@@ -232,6 +301,10 @@ iface vmbr0 inet dhcp
     bridge_stp off
     bridge_fd 0
 EOF
+
+                # Replace the original file with the new configuration
+                mv "$temp_file" /etc/network/interfaces
+                chmod 644 /etc/network/interfaces
 
                 whiptail --title "Configuração de Rede" --msgbox "A bridge vmbr0 foi configurada com DHCP." 10 60
                 break
