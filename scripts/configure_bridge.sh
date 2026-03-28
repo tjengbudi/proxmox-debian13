@@ -134,33 +134,103 @@ file_has_iface_definition()
 
 collect_sourced_interface_files()
 {
-    local line
-    local path
-    local dir
-    local candidate
-
-    while IFS= read -r line; do
-        case "$line" in
-            [[:space:]]*source[[:space:]]*)
-                path=$(printf '%s\n' "$line" | awk '{print $2}')
-                for candidate in $path; do
-                    [ -f "$candidate" ] && printf '%s\n' "$candidate"
-                done
-                ;;
-            [[:space:]]*source-directory[[:space:]]*)
-                dir=$(printf '%s\n' "$line" | awk '{print $2}')
-                if [ -d "$dir" ]; then
-                    find "$dir" -maxdepth 1 -type f ! -name '.*' | sort
-                fi
-                ;;
-        esac
-    done < /etc/network/interfaces
+    collect_network_files_recursive /etc/network/interfaces | tail -n +2
 }
 
 collect_all_network_files()
 {
-    printf '%s\n' /etc/network/interfaces
-    collect_sourced_interface_files
+    collect_network_files_recursive /etc/network/interfaces
+}
+
+resolve_network_include_path()
+{
+    local base_dir="$1"
+    local raw_path="$2"
+
+    case "$raw_path" in
+        /*)
+            printf '%s\n' "$raw_path"
+            ;;
+        *)
+            printf '%s\n' "$base_dir/$raw_path"
+            ;;
+    esac
+}
+
+expand_network_include_spec()
+{
+    local base_dir="$1"
+    local include_spec="$2"
+    local resolved_spec
+
+    resolved_spec=$(resolve_network_include_path "$base_dir" "$include_spec")
+
+    compgen -G "$resolved_spec" || true
+}
+
+collect_network_files_recursive()
+{
+    local root_file="$1"
+
+    declare -A seen=()
+
+    _collect_network_files_recursive_inner "$root_file" seen
+}
+
+_collect_network_files_recursive_inner()
+{
+    local file="$1"
+    local seen_name="$2"
+    local line
+    local include_spec
+    local include_path
+    local include_dir
+    local candidate
+    local base_dir
+    declare -n seen_ref="$seen_name"
+
+    [ -f "$file" ] || return 0
+
+    case "$file" in
+        /*)
+            ;;
+        *)
+            file="$(readlink -f "$file")"
+            ;;
+    esac
+
+    if [ "${seen_ref[$file]}" = "1" ]; then
+        return 0
+    fi
+    seen_ref["$file"]=1
+
+    printf '%s\n' "$file"
+
+    base_dir=$(dirname "$file")
+
+    while IFS= read -r line; do
+        case "$line" in
+            [[:space:]]*source[[:space:]]*)
+                include_spec=$(printf '%s\n' "$line" | awk '{print $2}')
+                for candidate in $include_spec; do
+                    while IFS= read -r include_path; do
+                        [ -f "$include_path" ] || continue
+                        _collect_network_files_recursive_inner "$include_path" "$seen_name"
+                    done < <(expand_network_include_spec "$base_dir" "$candidate")
+                done
+                ;;
+            [[:space:]]*source-directory[[:space:]]*)
+                include_spec=$(printf '%s\n' "$line" | awk '{print $2}')
+                include_dir=$(resolve_network_include_path "$base_dir" "$include_spec")
+                if [ -d "$include_dir" ]; then
+                    while IFS= read -r candidate; do
+                        [ -f "$candidate" ] || continue
+                        _collect_network_files_recursive_inner "$candidate" "$seen_name"
+                    done < <(find "$include_dir" -maxdepth 1 -type f ! -name '.*' | sort)
+                fi
+                ;;
+        esac
+    done < "$file"
 }
 
 backup_network_files()
