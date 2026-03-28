@@ -9,6 +9,11 @@ cd /proxmox-debian13
 source ./configs/colors.conf
 source ./configs/language.conf
 
+AUTORUN=0
+if [ "${1:-}" = "--autorun" ]; then
+    AUTORUN=1
+fi
+
 validate_ipv4()
 {
     [[ "$1" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]
@@ -78,6 +83,24 @@ show_deferred_apply_message()
     else
         whiptail --title "Configuração de Rede" --msgbox "Os arquivos da bridge foram salvos, mas a rede em execução NÃO foi recarregada.\n\nAplique as alterações depois via console/KVM com:\nifreload -a\n\nou reinicie o servidor quando estiver pronto." 16 70
     fi
+}
+
+show_ssh_autorun_message()
+{
+    if [ "$LANGUAGE" == "en" ]; then
+        echo "Bridge setup was started automatically during SSH login and has been skipped for safety."
+        echo "Run it manually from console/KVM or after logging in and explicitly starting:"
+        echo "  bash /proxmox-debian13/scripts/configure_bridge.sh"
+    else
+        echo "A configuração da bridge foi iniciada automaticamente durante o login SSH e foi ignorada por segurança."
+        echo "Execute manualmente via console/KVM ou depois do login com:"
+        echo "  bash /proxmox-debian13/scripts/configure_bridge.sh"
+    fi
+}
+
+should_skip_autorun_over_ssh()
+{
+    [ "$AUTORUN" -eq 1 ] && [ -n "$SSH_CONNECTION" ]
 }
 
 persist_network_config()
@@ -912,6 +935,13 @@ remove_start_script()
 main()
 {
     super_user
+
+    if should_skip_autorun_over_ssh; then
+        remove_start_script
+        show_ssh_autorun_message
+        return 0
+    fi
+
     if [ "$LANGUAGE" == "en" ]; then
         echo -e "${cyan}3rd part: Configuring bridge"
         echo -e "...${default}"

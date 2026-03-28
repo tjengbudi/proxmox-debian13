@@ -50,7 +50,7 @@ configure_bridge()
         if [ -f "$PROFILE_FILE" ]; then
             # Add the script execution line at the end of the file
             echo -e "\n# Run script after login" >> "$PROFILE_FILE"
-            echo "/proxmox-debian13/scripts/configure_bridge.sh" >> "$PROFILE_FILE"
+            echo "/proxmox-debian13/scripts/configure_bridge.sh --autorun" >> "$PROFILE_FILE"
             echo "# End of bridge script" >> "$PROFILE_FILE"
 
             echo "Automatic configuration completed for user: $(basename "$user_home")."
@@ -59,7 +59,7 @@ configure_bridge()
 
     # Add the following lines at the end of the /root/.bashrc file
     echo -e "\n# Run script after login" >> /root/.bashrc
-    echo "/proxmox-debian13/scripts/configure_bridge.sh" >> /root/.bashrc
+    echo "/proxmox-debian13/scripts/configure_bridge.sh --autorun" >> /root/.bashrc
     echo "# End of bridge script" >> /root/.bashrc
 
     echo "Automatic configuration completed for the root user."
