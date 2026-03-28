@@ -93,14 +93,10 @@ show_ssh_autorun_message()
 {
     if [ "$LANGUAGE" == "en" ]; then
         echo "Bridge setup was started automatically during SSH login."
-        echo "The saved static network settings will be written automatically, but live reload will be skipped for safety."
-        echo "If you want a different layout, run it manually later with:"
-        echo "  bash /proxmox-debian13/scripts/configure_bridge.sh"
+        echo "Interactive bridge selection will be shown, but live reload will still be skipped for safety."
     else
         echo "A configuração da bridge foi iniciada automaticamente durante o login SSH."
-        echo "As configurações estáticas salvas serão gravadas automaticamente, mas a recarga ao vivo será ignorada por segurança."
-        echo "Se quiser um layout diferente, execute manualmente depois com:"
-        echo "  bash /proxmox-debian13/scripts/configure_bridge.sh"
+        echo "A seleção interativa da bridge será exibida, mas a recarga ao vivo continuará desativada por segurança."
     fi
 }
 
@@ -130,6 +126,11 @@ show_autorun_apply_result()
         echo "  ifreload -a"
         echo "ou reinicie o servidor quando estiver pronto."
     fi
+}
+
+has_interactive_terminal()
+{
+    [ -t 0 ] && [ -t 1 ] && [ "${TERM:-dumb}" != "dumb" ]
 }
 
 persist_network_config()
@@ -1103,33 +1104,35 @@ main()
 
     if is_ssh_autorun; then
         show_ssh_autorun_message
-        config_file="configs/network.conf"
+        if ! has_interactive_terminal; then
+            config_file="configs/network.conf"
 
-        if [ ! -f "$config_file" ]; then
-            if [ "$LANGUAGE" == "en" ]; then
-                echo "Automatic bridge setup aborted: $config_file was not found."
-            else
-                echo "Configuração automática da bridge abortada: $config_file não foi encontrado."
+            if [ ! -f "$config_file" ]; then
+                if [ "$LANGUAGE" == "en" ]; then
+                    echo "Automatic bridge setup aborted: $config_file was not found."
+                else
+                    echo "Configuração automática da bridge abortada: $config_file não foi encontrado."
+                fi
+                remove_start_script
+                return 1
             fi
+
+            source "$config_file"
+
+            if [ ! -f "/etc/network/interfaces.backup" ]; then
+                cp /etc/network/interfaces /etc/network/interfaces.backup
+                echo -e "${green}Backup created: /etc/network/interfaces.backup${default}"
+            fi
+
+            if apply_saved_static_bridge_config "$config_file"; then
+                show_autorun_apply_result
+                remove_start_script
+                return 0
+            fi
+
             remove_start_script
             return 1
         fi
-
-        source "$config_file"
-
-        if [ ! -f "/etc/network/interfaces.backup" ]; then
-            cp /etc/network/interfaces /etc/network/interfaces.backup
-            echo -e "${green}Backup created: /etc/network/interfaces.backup${default}"
-        fi
-
-        if apply_saved_static_bridge_config "$config_file"; then
-            show_autorun_apply_result
-            remove_start_script
-            return 0
-        fi
-
-        remove_start_script
-        return 1
     fi
 
     if [ "$LANGUAGE" == "en" ]; then
