@@ -48,6 +48,38 @@ show_generated_file_error()
     fi
 }
 
+confirm_dhcp_selection()
+{
+    if [ "$LANGUAGE" == "en" ]; then
+        whiptail --title "Network Configuration" --defaultno --yesno "DHCP mode will replace the current static address assignment for this host with a DHCP-based bridge.\n\nOn dedicated servers this often breaks remote access if no DHCP service is present.\n\nDo you want to continue with DHCP mode?" 16 70
+    else
+        whiptail --title "Configuração de Rede" --defaultno --yesno "O modo DHCP vai substituir o endereçamento estático atual deste host por uma bridge baseada em DHCP.\n\nEm servidores dedicados isso costuma quebrar o acesso remoto se não existir um serviço DHCP disponível.\n\nDeseja continuar com o modo DHCP?" 16 70
+    fi
+}
+
+should_apply_network_now()
+{
+    if [ -n "$SSH_CONNECTION" ]; then
+        if [ "$LANGUAGE" == "en" ]; then
+            whiptail --title "Network Configuration" --defaultno --yesno "You are connected over SSH.\n\nApplying the new bridge configuration right now may terminate this remote session and leave the server unreachable if the network settings are wrong.\n\nRecommended action: choose 'No', then apply from console/KVM or reboot the server.\n\nDo you still want to apply the network changes now?" 18 72
+        else
+            whiptail --title "Configuração de Rede" --defaultno --yesno "Você está conectado via SSH.\n\nAplicar a nova bridge agora pode derrubar esta sessão remota e deixar o servidor inacessível se as configurações de rede estiverem erradas.\n\nAção recomendada: escolher 'Não', depois aplicar via console/KVM ou reiniciar o servidor.\n\nDeseja aplicar as alterações de rede agora mesmo?" 18 72
+        fi
+        return $?
+    fi
+
+    return 0
+}
+
+show_deferred_apply_message()
+{
+    if [ "$LANGUAGE" == "en" ]; then
+        whiptail --title "Network Configuration" --msgbox "The bridge configuration files were saved, but the live network was NOT reloaded.\n\nApply the changes later from console/KVM with:\nifreload -a\n\nor reboot the server when you are ready." 16 70
+    else
+        whiptail --title "Configuração de Rede" --msgbox "Os arquivos da bridge foram salvos, mas a rede em execução NÃO foi recarregada.\n\nAplique as alterações depois via console/KVM com:\nifreload -a\n\nou reinicie o servidor quando estiver pronto." 16 70
+    fi
+}
+
 persist_network_config()
 {
     local config_file="$1"
@@ -187,10 +219,15 @@ rewrite_interfaces_file()
     local gw="$4"
     local source_file="$5"
     local output_file="$6"
+    local strip_loopback=0
 
-    awk -v iface="$iface" -v bridge="vmbr0" '
+    if [ "$source_file" != "/etc/network/interfaces" ] && file_has_iface_definition "/etc/network/interfaces" "lo"; then
+        strip_loopback=1
+    fi
+
+    awk -v iface="$iface" -v bridge="vmbr0" -v strip_lo="$strip_loopback" '
         function is_target(name) {
-            return name == iface || name == bridge
+            return name == iface || name == bridge || (strip_lo && name == "lo")
         }
 
         BEGIN {
@@ -431,6 +468,10 @@ configure_bridge()
                     exit 1
                 fi
 
+                if ! confirm_dhcp_selection; then
+                    continue
+                fi
+
                 persist_network_config "$config_file" "$INTERFACE" "$IP_ADDRESS" "$GATEWAY"
 
                 if ! install_bridge_config "$INTERFACE" "dhcp" "$IP_ADDRESS" "$GATEWAY"; then
@@ -452,9 +493,10 @@ configure_bridge()
         esac
     done
 
-    # Restart the network service to apply the changes
-    if [ -n "$SSH_CONNECTION" ]; then
-        whiptail --title "Network Configuration" --msgbox "WARNING: This session is running over SSH.\nApplying bridge changes may disconnect your remote session.\nA backup is available at /etc/network/interfaces.backup." 12 60
+    if ! should_apply_network_now; then
+        rm -f "$NETWORK_TARGET_FILE_BACKUP"
+        show_deferred_apply_message
+        return 0
     fi
 
     whiptail --title "Network Configuration" --msgbox "Restarting the network service to apply the changes...\n\nWARNING: This may temporarily disconnect your network.\nIf you lose connection, you can restore the backup at:\n/etc/network/interfaces.backup" 15 60
@@ -560,6 +602,10 @@ configurar_bridge()
                     exit 1
                 fi
 
+                if ! confirm_dhcp_selection; then
+                    continue
+                fi
+
                 persist_network_config "$config_file" "$INTERFACE" "$IP_ADDRESS" "$GATEWAY"
 
                 if ! install_bridge_config "$INTERFACE" "dhcp" "$IP_ADDRESS" "$GATEWAY"; then
@@ -581,9 +627,10 @@ configurar_bridge()
         esac
     done
 
-    # Reiniciar o serviço de rede para aplicar as alterações
-    if [ -n "$SSH_CONNECTION" ]; then
-        whiptail --title "Configuração de Rede" --msgbox "AVISO: Esta sessão está rodando via SSH.\nAplicar alterações da bridge pode desconectar sua sessão remota.\nHá um backup em /etc/network/interfaces.backup." 12 60
+    if ! should_apply_network_now; then
+        rm -f "$NETWORK_TARGET_FILE_BACKUP"
+        show_deferred_apply_message
+        return 0
     fi
 
     whiptail --title "Configuração de Rede" --msgbox "Reiniciando o serviço de rede para aplicar as alterações...\n\nAVISO: Isso pode desconectar sua rede temporariamente.\nSe perder a conexão, você pode restaurar o backup em:\n/etc/network/interfaces.backup" 15 60
