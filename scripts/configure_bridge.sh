@@ -348,34 +348,22 @@ normalize_loopback_definitions()
 {
     local main_file="/etc/network/interfaces"
     local -a all_files=()
-    local -a loopback_files=()
     local file
-    local keeper=""
 
     while IFS= read -r file; do
         [ -f "$file" ] || continue
         all_files+=("$file")
-        if file_has_iface_definition "$file" "lo"; then
-            loopback_files+=("$file")
-        fi
     done < <(collect_all_network_files)
 
-    if [ ${#loopback_files[@]} -eq 0 ]; then
-        ensure_main_loopback
-        keeper="$main_file"
-    elif file_has_iface_definition "$main_file" "lo"; then
-        keeper="$main_file"
-    else
-        keeper="${loopback_files[0]}"
-    fi
-
     for file in "${all_files[@]}"; do
-        if [ "$file" != "$keeper" ] && file_has_iface_definition "$file" "lo"; then
+        if file_has_iface_definition "$file" "lo"; then
             strip_iface_from_file "$file" "lo" || return 1
         fi
     done
 
-    if ! file_has_iface_definition "$keeper" "lo"; then
+    ensure_main_loopback || return 1
+
+    if ! file_has_iface_definition "$main_file" "lo"; then
         return 1
     fi
 }
