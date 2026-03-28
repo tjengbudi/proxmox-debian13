@@ -64,6 +64,10 @@ confirm_dhcp_selection()
 
 should_apply_network_now()
 {
+    if is_ssh_autorun; then
+        return 1
+    fi
+
     if [ -n "$SSH_CONNECTION" ]; then
         if [ "$LANGUAGE" == "en" ]; then
             whiptail --title "Network Configuration" --defaultno --yesno "You are connected over SSH.\n\nApplying the new bridge configuration right now may terminate this remote session and leave the server unreachable if the network settings are wrong.\n\nRecommended action: choose 'No', then apply from console/KVM or reboot the server.\n\nDo you still want to apply the network changes now?" 18 72
@@ -88,19 +92,44 @@ show_deferred_apply_message()
 show_ssh_autorun_message()
 {
     if [ "$LANGUAGE" == "en" ]; then
-        echo "Bridge setup was started automatically during SSH login and has been skipped for safety."
-        echo "Run it manually from console/KVM or after logging in and explicitly starting:"
+        echo "Bridge setup was started automatically during SSH login."
+        echo "The saved static network settings will be written automatically, but live reload will be skipped for safety."
+        echo "If you want a different layout, run it manually later with:"
         echo "  bash /proxmox-debian13/scripts/configure_bridge.sh"
     else
-        echo "A configuração da bridge foi iniciada automaticamente durante o login SSH e foi ignorada por segurança."
-        echo "Execute manualmente via console/KVM ou depois do login com:"
+        echo "A configuração da bridge foi iniciada automaticamente durante o login SSH."
+        echo "As configurações estáticas salvas serão gravadas automaticamente, mas a recarga ao vivo será ignorada por segurança."
+        echo "Se quiser um layout diferente, execute manualmente depois com:"
         echo "  bash /proxmox-debian13/scripts/configure_bridge.sh"
     fi
 }
 
-should_skip_autorun_over_ssh()
+is_ssh_autorun()
 {
     [ "$AUTORUN" -eq 1 ] && [ -n "$SSH_CONNECTION" ]
+}
+
+show_autorun_apply_result()
+{
+    if [ "$LANGUAGE" == "en" ]; then
+        echo "Bridge configuration was generated automatically with:"
+        echo "  interface: $INTERFACE"
+        echo "  address:   $IP_ADDRESS"
+        echo "  gateway:   ${GATEWAY:-<none>}"
+        echo "Live network reload was skipped because this was triggered during SSH login."
+        echo "Apply later from console/KVM with:"
+        echo "  ifreload -a"
+        echo "or reboot the server when ready."
+    else
+        echo "A configuração da bridge foi gerada automaticamente com:"
+        echo "  interface: $INTERFACE"
+        echo "  address:   $IP_ADDRESS"
+        echo "  gateway:   ${GATEWAY:-<nenhum>}"
+        echo "A recarga ao vivo da rede foi ignorada porque isso foi acionado durante o login SSH."
+        echo "Aplique depois via console/KVM com:"
+        echo "  ifreload -a"
+        echo "ou reinicie o servidor quando estiver pronto."
+    fi
 }
 
 persist_network_config()
@@ -113,6 +142,46 @@ persist_network_config()
     echo "INTERFACE=$iface" > "$config_file"
     echo "IP_ADDRESS=$ip_cidr" >> "$config_file"
     echo "GATEWAY=$gw" >> "$config_file"
+}
+
+apply_saved_static_bridge_config()
+{
+    local config_file="$1"
+
+    if ! ip link show dev "$INTERFACE" >/dev/null 2>&1; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo "Automatic bridge setup aborted: interface '$INTERFACE' does not exist."
+        else
+            echo "Configuração automática da bridge abortada: a interface '$INTERFACE' não existe."
+        fi
+        return 1
+    fi
+
+    if ! validate_cidr "$IP_ADDRESS"; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo "Automatic bridge setup aborted: saved IP/CIDR '$IP_ADDRESS' is invalid."
+        else
+            echo "Configuração automática da bridge abortada: o IP/CIDR salvo '$IP_ADDRESS' é inválido."
+        fi
+        return 1
+    fi
+
+    if [[ -n "$GATEWAY" ]] && ! validate_ipv4 "$GATEWAY"; then
+        if [ "$LANGUAGE" == "en" ]; then
+            echo "Automatic bridge setup aborted: saved gateway '$GATEWAY' is invalid."
+        else
+            echo "Configuração automática da bridge abortada: o gateway salvo '$GATEWAY' é inválido."
+        fi
+        return 1
+    fi
+
+    persist_network_config "$config_file" "$INTERFACE" "$IP_ADDRESS" "$GATEWAY"
+
+    if ! install_bridge_config "$INTERFACE" "static" "$IP_ADDRESS" "$GATEWAY"; then
+        return 1
+    fi
+
+    return 0
 }
 
 render_bridge_config()
@@ -936,10 +1005,35 @@ main()
 {
     super_user
 
-    if should_skip_autorun_over_ssh; then
-        remove_start_script
+    if is_ssh_autorun; then
         show_ssh_autorun_message
-        return 0
+        config_file="configs/network.conf"
+
+        if [ ! -f "$config_file" ]; then
+            if [ "$LANGUAGE" == "en" ]; then
+                echo "Automatic bridge setup aborted: $config_file was not found."
+            else
+                echo "Configuração automática da bridge abortada: $config_file não foi encontrado."
+            fi
+            remove_start_script
+            return 1
+        fi
+
+        source "$config_file"
+
+        if [ ! -f "/etc/network/interfaces.backup" ]; then
+            cp /etc/network/interfaces /etc/network/interfaces.backup
+            echo -e "${green}Backup created: /etc/network/interfaces.backup${default}"
+        fi
+
+        if apply_saved_static_bridge_config "$config_file"; then
+            show_autorun_apply_result
+            remove_start_script
+            return 0
+        fi
+
+        remove_start_script
+        return 1
     fi
 
     if [ "$LANGUAGE" == "en" ]; then
