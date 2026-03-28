@@ -367,6 +367,36 @@ cleanup_network_backups()
     rm -rf "$backup_dir"
 }
 
+is_cloud_init_network_file()
+{
+    local file="$1"
+
+    case "$(basename "$file")" in
+        *cloud-init*)
+            return 0
+            ;;
+    esac
+
+    grep -q "generated from information provided by the datasource" "$file"
+}
+
+disable_cloud_init_network_config()
+{
+    mkdir -p /etc/cloud/cloud.cfg.d
+    cat > /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg <<'EOF'
+network: {config: disabled}
+EOF
+}
+
+show_cloud_init_takeover_message()
+{
+    if [ "$LANGUAGE" == "en" ]; then
+        echo "Cloud-init network management was disabled so the Proxmox bridge configuration can persist."
+    else
+        echo "O gerenciamento de rede do cloud-init foi desativado para que a configuração da bridge do Proxmox persista."
+    fi
+}
+
 resolve_interfaces_target_file()
 {
     local iface="$1"
@@ -668,6 +698,11 @@ install_bridge_config()
     esac
 
     temp_file=$(mktemp)
+
+    if is_cloud_init_network_file "$target_file"; then
+        disable_cloud_init_network_config
+        show_cloud_init_takeover_message
+    fi
 
     rewrite_interfaces_file "$iface" "$mode" "$ip_cidr" "$gw" "$target_file" "$temp_file"
     rewrite_status=$?
