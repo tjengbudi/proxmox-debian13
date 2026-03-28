@@ -388,12 +388,38 @@ network: {config: disabled}
 EOF
 }
 
+neutralize_cloud_init_network_file()
+{
+    local file="$1"
+
+    cat > "$file" <<'EOF'
+# Disabled by proxmox-debian13 bridge setup
+# The previous cloud-init network content was replaced to avoid
+# duplicate interface definitions with the Proxmox bridge config.
+# Cloud-init network management is disabled via:
+#   /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg
+EOF
+    chmod 644 "$file"
+}
+
+neutralize_cloud_init_network_files()
+{
+    local file
+
+    while IFS= read -r file; do
+        [ -f "$file" ] || continue
+        if is_cloud_init_network_file "$file"; then
+            neutralize_cloud_init_network_file "$file"
+        fi
+    done < <(collect_sourced_interface_files)
+}
+
 show_cloud_init_takeover_message()
 {
     if [ "$LANGUAGE" == "en" ]; then
-        echo "Cloud-init network management was disabled so the Proxmox bridge configuration can persist."
+        echo "Cloud-init network management was disabled and its sourced network fragments were neutralized so the Proxmox bridge configuration can persist."
     else
-        echo "O gerenciamento de rede do cloud-init foi desativado para que a configuração da bridge do Proxmox persista."
+        echo "O gerenciamento de rede do cloud-init foi desativado e seus fragments de rede foram neutralizados para que a configuração da bridge do Proxmox persista."
     fi
 }
 
@@ -702,6 +728,7 @@ install_bridge_config()
     if is_cloud_init_network_file "$target_file"; then
         disable_cloud_init_network_config
         show_cloud_init_takeover_message
+        target_file="/etc/network/interfaces"
     fi
 
     rewrite_interfaces_file "$iface" "$mode" "$ip_cidr" "$gw" "$target_file" "$temp_file"
@@ -724,6 +751,16 @@ install_bridge_config()
 
     mv "$temp_file" "$target_file"
     chmod 644 "$target_file"
+
+    if [ -f /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg ]; then
+        neutralize_cloud_init_network_files || {
+            restore_network_backups "$NETWORK_FILE_BACKUPS_DIR"
+            cleanup_network_backups "$NETWORK_FILE_BACKUPS_DIR"
+            NETWORK_FILE_BACKUPS_DIR=""
+            show_generated_file_error
+            return 1
+        }
+    fi
 
     if ! normalize_loopback_definitions; then
         restore_network_backups "$NETWORK_FILE_BACKUPS_DIR"
